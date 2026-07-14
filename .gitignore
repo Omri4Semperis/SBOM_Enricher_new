@@ -160,7 +160,7 @@ Desktop.ini
 
 # Project input / output
 input/
-output/
+runs/
 caches/
 ad_hoc_scripts_output/
 **/ad_hoc_scripts_output/
