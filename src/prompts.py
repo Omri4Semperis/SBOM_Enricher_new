@@ -98,3 +98,42 @@ def copyright_prompt(license_text: str) -> tuple[str, str]:
         "Extract the copyright notice(s). Reply with the JSON object only."
     )
     return COPYRIGHT_SYSTEM, user
+
+
+EQUALITY_JUDGE_SYSTEM = """\
+You are an equality judge for software-license audit.
+
+Reply ONLY with a JSON object:
+{"verdict": "TRUE" | "FALSE", "reasoning": "<one sentence>"}
+
+verdict must be exactly TRUE or FALSE — never UNKNOWN. No markdown fences."""
+
+
+def equality_name_prompts(inferred: str, ground_truth: str) -> tuple[str, str]:
+    user = (
+        "Do these two license names refer to the same license?\n\n"
+        f"inferred: {inferred}\n"
+        f"ground_truth: {ground_truth}\n\n"
+        "Reply with the JSON object only."
+    )
+    return EQUALITY_JUDGE_SYSTEM, user
+
+
+def equality_copyright_prompts(inferred: str, ground_truth: str) -> tuple[str, str]:
+    user = (
+        "Do these two copyright notices refer to the same holder/notice?\n\n"
+        f"inferred: {inferred}\n"
+        f"ground_truth: {ground_truth}\n\n"
+        "Reply with the JSON object only."
+    )
+    return EQUALITY_JUDGE_SYSTEM, user
+
+
+def equality_url_prompts(inferred_text: str, ground_truth_text: str) -> tuple[str, str]:
+    user = (
+        "Is this the same license text (same license, immaterial formatting ok)?\n\n"
+        f"--- inferred ---\n{inferred_text}\n\n"
+        f"--- ground_truth ---\n{ground_truth_text}\n\n"
+        "Reply with the JSON object only."
+    )
+    return EQUALITY_JUDGE_SYSTEM, user
