@@ -180,11 +180,11 @@ Phase-notes, report and stop.
 ## Outcome
 
 Objective: preflight + progress + extended CSV + summary.json
-HEAD: 72889a4 | Branch: master
+HEAD: b5d63f8 | Branch: master
 Files changed:
 - docs/BACKLOG.md
-- docs/plans/v2-enricher/PLAN.md
-- docs/plans/v2-enricher/P8_ops_preflight_progress_summary.md
+- docs/plans/archive/v2-enricher/PLAN.md
+- docs/plans/archive/v2-enricher/P8_ops_preflight_progress_summary.md
 - src/main.py
 - src/preflight.py
 - src/pricing.py
@@ -202,14 +202,16 @@ Commands run:
 - T2: `pytest -q tests/test_pricing.py tests/test_progress.py` → 7 passed
 - T3: `pytest -q tests/test_summary.py tests/test_pipeline.py` → 12 passed
 - Gate: `pytest -q` → 92 then 94 passed after review fixes; review FAIL→fixed
+- On completion: archive to `docs/plans/archive/v2-enricher/`; stamp COMPLETED 2026-07-15
 Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 94 passed
 Assumptions:
 1. Four preflight attempts (initial + sleeps 2/4/6) satisfy "≥3 attempts (e.g. 2s,4s,6s)".
 2. Costs stay `unknown` until BACKLOG #6; Story parse covers timings/reasons only.
 3. `tests/conftest.py` autouse noop-preflight is an allowed deviation (suite must not hit live providers).
 Open questions: none
-Next action: plan complete — run PLAN.md On completion
+Next action: plan complete
 Deviations:
 - Touch list omitted `tests/conftest.py`; edited for autouse preflight noop.
 - `.gitignore` `runs/` already present (P2 Incoming resolved, no edit).
 - Extended CSV raw/cost fields empty/`unknown` with Incoming on P3/P5/P6/P7 + BACKLOG #6.
+- No new ADR: ops already LOCKED in DECISIONS.md; cost capture parked as BACKLOG #6.
