@@ -54,7 +54,7 @@ decision, nothing more.
 | Phase                                                             | Purpose                                                              | Depends on | Status  | Baseline | Updated |
 | -                                                                 | -                                                                    | -          | -       | -        | -       |
 | [P1: scaffold_and_config](./P1_scaffold_and_config.md)            | pytest in venv, `src` package, load + validate `default.json`        | -          | done | c221171 | 2026-07-14 |
-| [P2: input_run_dir_stub](./P2_input_run_dir_stub.md)              | CSV validate + parse, run dir + input copies, stub worker pipeline   | P1         | pending |          |         |
+| [P2: input_run_dir_stub](./P2_input_run_dir_stub.md)              | CSV validate + parse, run dir + input copies, stub worker pipeline   | P1         | in progress | f65cd87 | 2026-07-14 |
 | [P3: license_inference](./P3_license_inference.md)                | Claude client + license JSON contract + retry, wired into pipeline   | P2         | pending |          |         |
 | [P4: license_download](./P4_license_download.md)                  | viewer→raw rewrite, HTML reject, npm/unpkg fallback, save files      | P3         | pending |          |         |
 | [P5: copyright_extraction](./P5_copyright_extraction.md)          | fixed GPT-4.1 client, file-only copyright (ADR 0003)                 | P4         | pending |          |         |

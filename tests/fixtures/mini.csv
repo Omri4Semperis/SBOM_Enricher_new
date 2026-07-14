@@ -1,0 +1,4 @@
+component_name,purl,notes
+awesome.me@1.0.277,pkg:npm/awesome.me@1.0.277,has purl
+left-pad@1.3.0,,empty purl
+lodash@4.17.21,pkg:npm/lodash@4.17.21,passthrough
