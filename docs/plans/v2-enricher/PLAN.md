@@ -59,7 +59,7 @@ decision, nothing more.
 | [P4: license_download](./P4_license_download.md)                  | viewer→raw rewrite, HTML reject, npm/unpkg fallback, save files      | P3         | done | f7b3f36 | 2026-07-14 |
 | [P5: copyright_extraction](./P5_copyright_extraction.md)          | fixed GPT-4.1 client, file-only copyright (ADR 0003)                 | P4         | done | 45d6cfd | 2026-07-15 |
 | [P6: cache_all_or_nothing](./P6_cache_all_or_nothing.md)          | cross-run cache keyed on `component_name`, full-success-only (0001)  | P5         | done | 63fb57c | 2026-07-15 |
-| [P7: audit_equality_score](./P7_audit_equality_score.md)          | `is_eq_*` triplets, ladders, URL content-sameness (0002), score.csv  | P5         | pending |          |         |
+| [P7: audit_equality_score](./P7_audit_equality_score.md)          | `is_eq_*` triplets, ladders, URL content-sameness (0002), score.csv  | P5         | done | e022742 | 2026-07-15 |
 | [P8: ops_preflight_progress_summary](./P8_ops_preflight_progress_summary.md) | preflight, progress+ETA, extended CSV, summary.json      | P6, P7     | pending |          |         |
 
 Filenames use `P{N}_{snake_case_title}.md`. "Depends on" lists phase ids or "-".
@@ -198,7 +198,17 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   succeed else FALSE), and `score.csv` tally writer. Only emits columns/grades
   for items whose ground-truth column is supplied. Reuses P5's GPT-4.1 client
   for the judge (uniform `{verdict, reasoning}` schema).
-- **Notes:**
+- **Notes:** Done. Audit detected via `detect_gt_columns(extras)` from input
+  header (`license_name` / `license_code_url` / `copyright`). `ResultsWriter`
+  rebuilds locked triplets (GT→inferred→is_eq; collapse when GT absent;
+  other extras at end). Equality: `compare_name` / `compare_copyright` /
+  `compare_url_content` → `EqResult(verdict, reason)`; wired in
+  `pipeline.apply_equality` after enrichment (incl. cache hits).
+  `ComponentResult` fields for P8 extended CSV: `is_eq_*`,
+  `eq_license_name_reason` / `eq_license_code_url_reason` /
+  `eq_copyright_reason`, `grades` (`h`/`m`/`u` per GT item).
+  `scoring.write_score_csv(path, results, gt_columns)` → `score.csv` or None.
+  Review PASS; applied unused-property / dead-branch shrinks.
 - **Incoming comments:**
   - From P3: audit inputs already flow through today. `read_components`
     (`src/input_csv.py`) puts every non-`component_name`/`purl` column into
@@ -224,6 +234,11 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
 - **Incoming comments:**
   - From P2: add `runs/` to `.gitignore` (P2 exit demo created untracked
     `runs/`; `.gitignore` was outside P2 Touch list). See P2 Outcome.
+  - From P7: extended CSV should surface per-component `is_eq_*` reasons
+    (`eq_license_name_reason`, `eq_license_code_url_reason`,
+    `eq_copyright_reason` — e.g. `gt_url_download_failed` / `judge:…`) and
+    `grades` (`h`/`m`/`u` dict keyed by GT item). `score.csv` already written
+    by `scoring.write_score_csv`; do not re-grade from scratch unless needed.
 
 ## On completion
 

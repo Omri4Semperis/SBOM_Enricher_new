@@ -180,3 +180,33 @@ Phase-notes, report and stop.
 3. Reflect into Phase-notes: audit-mode detection point, `is_eq_*` field names,
    the grade/reason fields P8's extended CSV must surface, `score.csv` writer.
 4. Record full **Outcome** here (same shape as P1's).
+
+## Outcome
+
+Objective: audit-mode `is_eq_*` ladders + score.csv (ADR 0002)
+HEAD: 9007591 | Branch: master
+Files changed:
+- docs/plans/v2-enricher/PLAN.md
+- docs/plans/v2-enricher/P7_audit_equality_score.md
+- src/equality.py
+- src/main.py
+- src/pipeline.py
+- src/prompts.py
+- src/results_csv.py
+- src/scoring.py
+- tests/fixtures/mini_audit.csv
+- tests/test_equality.py
+- tests/test_pipeline.py
+- tests/test_results_csv.py
+- tests/test_scoring.py
+Commands run:
+- Entry: `pytest -q` → 58 passed; porcelain empty; baseline `e022742`
+- T1: `pytest -q tests/test_equality.py` → 8 passed
+- T2: `pytest -q tests/test_scoring.py` → 4 passed
+- T3: `pytest -q tests/test_results_csv.py tests/test_pipeline.py` → 15 passed
+- Gate: `pytest -q` → 78 passed; review PASS; post-shrink `pytest -q` → 78 passed
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 78 passed
+Assumptions: none
+Open questions: none
+Deviations: none material (prompts added in T1 with equality; review shrinks applied)
+Next action: P8 (ops_preflight_progress_summary) — depends on P6+P7, both done
