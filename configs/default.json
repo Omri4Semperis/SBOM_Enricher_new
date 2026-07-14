@@ -1,5 +1,5 @@
 {
-    "input_file_path": "input/GT_dedup_with_purl1.csv",
+    "input_file_path": "input/tiny.csv",
     "output_base_path": "runs",
     "run_name": null,
     "model": "claude-opus-4-8",
