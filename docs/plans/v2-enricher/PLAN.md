@@ -57,7 +57,7 @@ decision, nothing more.
 | [P2: input_run_dir_stub](./P2_input_run_dir_stub.md)              | CSV validate + parse, run dir + input copies, stub worker pipeline   | P1         | done | f65cd87 | 2026-07-14 |
 | [P3: license_inference](./P3_license_inference.md)                | Claude client + license JSON contract + retry, wired into pipeline   | P2         | done | 234411c | 2026-07-14 |
 | [P4: license_download](./P4_license_download.md)                  | viewer→raw rewrite, HTML reject, npm/unpkg fallback, save files      | P3         | done | f7b3f36 | 2026-07-14 |
-| [P5: copyright_extraction](./P5_copyright_extraction.md)          | fixed GPT-4.1 client, file-only copyright (ADR 0003)                 | P4         | pending |          |         |
+| [P5: copyright_extraction](./P5_copyright_extraction.md)          | fixed GPT-4.1 client, file-only copyright (ADR 0003)                 | P4         | done | 45d6cfd | 2026-07-15 |
 | [P6: cache_all_or_nothing](./P6_cache_all_or_nothing.md)          | cross-run cache keyed on `component_name`, full-success-only (0001)  | P5         | pending |          |         |
 | [P7: audit_equality_score](./P7_audit_equality_score.md)          | `is_eq_*` triplets, ladders, URL content-sameness (0002), score.csv  | P5         | pending |          |         |
 | [P8: ops_preflight_progress_summary](./P8_ops_preflight_progress_summary.md) | preflight, progress+ETA, extended CSV, summary.json      | P6, P7     | pending |          |         |
@@ -161,7 +161,14 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   returning `{copyright, reasoning}`. Reads ONLY the downloaded file (ADR
   0003); no file ⇒ `inferred_copyright = UNKNOWN`. The GPT-4.1 client here is
   reused by P7's equality judge — expose it as a small reusable class.
-- **Notes:**
+- **Notes:** Done. `Gpt41Client.complete_json(system_prompt, user_prompt) ->
+  dict` with `with_retries`; Azure constants live in `src/gpt41_client.py`
+  (`AZURE_ENDPOINT`, `GPT41_DEPLOYMENT=gpt-4.1-limitless`, `AZURE_API_VERSION`,
+  `AZURE_TOKEN_SCOPE`). `async extract_copyright(license_text) -> dict` in
+  `src/copyright.py` ({copyright, reasoning}; placeholder/empty/fail →
+  UNKNOWN). Pipeline reads `license_file_path` only. Review PASS; dropped
+  unused `TransientFailure`. Deviation: unrelated commit `4f44847` lint-fixed
+  other phase `P*` docs mid-phase (outside P5 Touch; not reverted).
 - **Incoming comments:**
 
 ### P6: cache_all_or_nothing

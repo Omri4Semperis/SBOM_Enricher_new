@@ -46,6 +46,7 @@ equality judge, so make it a small reusable class.
   Value is the full statement as it appears, trimmed (e.g.
   `Copyright (c) 2020 Jane Doe`), not just the holder. `UNKNOWN` sentinel
   replaces a `found` boolean. Maps to `inferred_copyright`.
+
 - Locked no-fallbacks (ADR 0003): no npm-author, no Claude web copyright. File
   missing or no real holder ⇒ `UNKNOWN`. (Fallbacks are BACKLOG #4.)
 - Locked prompt policy ("Prompting"): inspiration from
@@ -151,3 +152,27 @@ Phase-notes, report and stop.
 3. Reflect into Phase-notes: `Gpt41Client.complete_json` signature (P7 reuses
    it), `extract_copyright` signature, the fixed Azure constants' location.
 4. Record full **Outcome** here (same shape as P1's).
+
+## Outcome
+
+Objective: file-only copyright extraction via fixed GPT-4.1 client (ADR 0003)
+HEAD: e9d733b | Branch: master
+Files changed:
+- docs/plans/v2-enricher/PLAN.md
+- docs/plans/v2-enricher/P5_copyright_extraction.md
+- src/copyright.py
+- src/gpt41_client.py
+- src/pipeline.py
+- src/prompts.py
+- tests/test_copyright.py
+- tests/test_pipeline.py
+Commands run:
+- Entry: `pytest -q` → 43 passed; porcelain empty; baseline `45d6cfd`
+- T1: `pytest -q tests/test_copyright.py -k client` → 2 passed
+- T2: `pytest -q tests/test_copyright.py -k extract` → 4 passed
+- T3: `pytest -q tests/test_pipeline.py` → 4 passed
+- Gate: `pytest -q` → 50 passed; review PASS; post-shrink `pytest -q` → 50 passed
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 50 passed
+Assumptions: none
+Open questions: none
+Next action: P6 (cache_all_or_nothing) — also eligible: P7
