@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from cache import read_cache, restore_license_file, write_cache
 from claude_client import infer_license
 from config import Config
 from copyright import extract_copyright
@@ -26,6 +27,7 @@ class ComponentResult:
     license_file_path: Path | None = None
     download_attempts: list[str] = field(default_factory=list)
     original_license_url: str = ""
+    from_cache: bool = False
 
 
 def story_path(run_dir: Path, slug: str) -> Path:
@@ -39,11 +41,27 @@ def append_story(run_dir: Path, slug: str, line: str) -> None:
 
 
 async def process_component(
-    comp: Component, run_dir: Path, model: str
+    comp: Component,
+    run_dir: Path,
+    model: str,
+    *,
+    cache_read: Path | None = None,
+    cache_write: Path | None = None,
 ) -> ComponentResult:
     result = ComponentResult(component=comp)
     if not (comp.purl or "").strip():
         append_story(run_dir, comp.slug, "no purl")
+
+    cached = read_cache(cache_read, comp.component_name)
+    if cached is not None:
+        flat = restore_license_file(cached, run_dir, comp.slug)
+        result.inferred_license_name = cached.inferred_license_name
+        result.inferred_license_code_url = cached.inferred_license_code_url
+        result.inferred_copyright = cached.inferred_copyright
+        result.license_file_path = flat
+        result.from_cache = True
+        append_story(run_dir, comp.slug, "cache hit")
+        return result
 
     t0 = time.perf_counter()
     data = await infer_license(comp.purl, comp.lib_name, comp.version, model)
@@ -96,6 +114,8 @@ async def process_component(
         )
     else:
         append_story(run_dir, comp.slug, "copyright: skipped (no license file)")
+
+    write_cache(cache_write, comp.component_name, result)
     return result
 
 
@@ -110,7 +130,13 @@ async def run_workers(
 
     async def one(comp: Component) -> ComponentResult:
         async with sem:
-            return await process_component(comp, run_dir, config.model)
+            return await process_component(
+                comp,
+                run_dir,
+                config.model,
+                cache_read=config.cache_read,
+                cache_write=config.cache_write,
+            )
 
     tasks = [asyncio.create_task(one(c)) for c in components]
     for finished in asyncio.as_completed(tasks):

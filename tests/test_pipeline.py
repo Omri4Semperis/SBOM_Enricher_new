@@ -183,3 +183,121 @@ def test_no_file_copyright_unknown_extractor_not_called(tmp_path, monkeypatch):
         encoding="utf-8"
     )
     assert "copyright: skipped (no license file)" in story
+
+
+def test_cache_hit_skips_stages(tmp_path, monkeypatch):
+    from cache import write_cache
+    from input_csv import Component
+
+    seed_lic = tmp_path / "seed.txt"
+    seed_lic.write_bytes(b"cached license body\n")
+    seed = pipeline.ComponentResult(
+        component=Component(
+            component_name="solo@1.0",
+            purl="pkg:npm/solo@1.0",
+            lib_name="solo",
+            version="1.0",
+            slug="solo@1.0",
+            extras={},
+        ),
+        inferred_license_name="Apache-2.0",
+        inferred_license_code_url="https://example.com/LICENSE",
+        inferred_copyright="Copyright (c) Cached",
+        license_file_path=seed_lic,
+    )
+    cache_dir = tmp_path / "cache"
+    assert write_cache(cache_dir, "solo@1.0", seed)
+
+    infer = AsyncMock(side_effect=AssertionError("infer must not run"))
+    download = AsyncMock(side_effect=AssertionError("download must not run"))
+    extract = AsyncMock(side_effect=AssertionError("copyright must not run"))
+    monkeypatch.setattr(pipeline, "infer_license", infer)
+    monkeypatch.setattr(pipeline, "fetch_license_file", download)
+    monkeypatch.setattr(pipeline, "extract_copyright", extract)
+
+    comp = seed.component
+    run = tmp_path / "run"
+    (run / "per_component" / comp.slug).mkdir(parents=True)
+
+    result = asyncio.run(
+        pipeline.process_component(
+            comp, run, "claude-haiku-4-5", cache_read=cache_dir
+        )
+    )
+    assert result.from_cache is True
+    assert result.inferred_license_name == "Apache-2.0"
+    assert result.inferred_copyright == "Copyright (c) Cached"
+    assert result.license_file_path == run / "licenses" / "solo@1.0.txt"
+    assert result.license_file_path.read_bytes() == b"cached license body\n"
+    assert (run / "per_component" / "solo@1.0" / "solo@1.0.txt").is_file()
+    infer.assert_not_awaited()
+    download.assert_not_awaited()
+    extract.assert_not_awaited()
+    story = (run / "per_component" / comp.slug / pipeline.STORY_FILENAME).read_text(
+        encoding="utf-8"
+    )
+    assert "cache hit" in story
+
+
+def test_cache_write_on_full_success(tmp_path, monkeypatch):
+    monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
+    monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
+    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
+
+    from cache import read_cache
+    from input_csv import Component
+
+    comp = Component(
+        component_name="solo@1.0",
+        purl="pkg:npm/solo@1.0",
+        lib_name="solo",
+        version="1.0",
+        slug="solo@1.0",
+        extras={},
+    )
+    run = tmp_path / "run"
+    cache_dir = tmp_path / "cache"
+    (run / "per_component" / comp.slug).mkdir(parents=True)
+
+    result = asyncio.run(
+        pipeline.process_component(
+            comp, run, "claude-haiku-4-5", cache_write=cache_dir
+        )
+    )
+    assert result.from_cache is False
+    got = read_cache(cache_dir, "solo@1.0")
+    assert got is not None
+    assert got.inferred_license_name == "MIT"
+    assert got.inferred_copyright == "Copyright (c) 2020 Jane Doe"
+
+
+def test_cache_write_skips_unknown_copyright(tmp_path, monkeypatch):
+    async def unknown_copyright(license_text):
+        return {"copyright": "UNKNOWN", "reasoning": "none found"}
+
+    monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
+    monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
+    monkeypatch.setattr(pipeline, "extract_copyright", unknown_copyright)
+
+    from cache import read_cache
+    from input_csv import Component
+
+    comp = Component(
+        component_name="solo@1.0",
+        purl="pkg:npm/solo@1.0",
+        lib_name="solo",
+        version="1.0",
+        slug="solo@1.0",
+        extras={},
+    )
+    run = tmp_path / "run"
+    cache_dir = tmp_path / "cache"
+    (run / "per_component" / comp.slug).mkdir(parents=True)
+
+    asyncio.run(
+        pipeline.process_component(
+            comp, run, "claude-haiku-4-5", cache_write=cache_dir
+        )
+    )
+    assert read_cache(cache_dir, "solo@1.0") is None
+    assert not (cache_dir / "cache.csv").exists()
