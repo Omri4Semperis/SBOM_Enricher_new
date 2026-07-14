@@ -2,7 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
+import shutil
+from dataclasses import dataclass, field
+from pathlib import Path
 from urllib.parse import unquote, urlsplit, urlunsplit
+
+import requests
+
+from retry import with_retries
+
+FETCH_TIMEOUT_S = 30.0
+_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 
 GENERIC_LICENSE_HOSTS: frozenset[str] = frozenset({
     "opensource.org",
@@ -98,3 +109,148 @@ def npm_candidates(purl: str) -> list[str]:
         f"https://unpkg.com/{package_name}@{version}/{filename}"
         for filename in NPM_LICENSE_FILENAMES
     ]
+
+
+@dataclass
+class DownloadResult:
+    resolved_url: str = ""
+    saved_path: Path | None = None
+    error: str = ""
+    original_url: str = ""
+    attempts: list[str] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        return self.saved_path is not None
+
+
+class _HttpFail(Exception):
+    """Raised from a single GET so with_retries can classify it."""
+
+    def __init__(self, kind: str, message: str):
+        super().__init__(message)
+        self.kind = kind  # "transient" | "hard"
+
+
+def _classify_http(exc: BaseException) -> str:
+    if isinstance(exc, _HttpFail):
+        return exc.kind
+    if isinstance(exc, (requests.Timeout, requests.ConnectionError)):
+        return "transient"
+    if isinstance(exc, requests.RequestException):
+        return "transient"
+    return "hard"
+
+
+def _get_bytes(url: str) -> tuple[bytes, str]:
+    try:
+        response = requests.get(url, timeout=FETCH_TIMEOUT_S)
+    except requests.Timeout as exc:
+        raise _HttpFail("transient", f"timeout:{exc}") from exc
+    except requests.RequestException as exc:
+        raise _HttpFail("transient", f"network:{exc.__class__.__name__}") from exc
+
+    status = response.status_code
+    if status != 200:
+        kind = "transient" if status in _RETRYABLE_STATUS else "hard"
+        raise _HttpFail(kind, f"http_{status}")
+
+    body = response.content
+    if not body:
+        raise _HttpFail("hard", "empty_body")
+    return body, response.headers.get("Content-Type", "").strip()
+
+
+def _ext_for(url: str, content_type: str) -> str:
+    ext = Path(urlsplit(url).path).suffix.lower()
+    if ext:
+        return ext
+    mime = content_type.split(";", 1)[0].strip().lower()
+    if mime in {"text/markdown", "text/x-markdown"}:
+        return ".md"
+    return ".txt"
+
+
+def _write_license(dest_dir: Path, slug: str, ext: str, body: bytes) -> Path:
+    licenses_dir = dest_dir / "licenses"
+    licenses_dir.mkdir(parents=True, exist_ok=True)
+    flat = licenses_dir / f"{slug}{ext}"
+    flat.write_bytes(body)
+
+    per = dest_dir / "per_component" / slug
+    per.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(flat, per / flat.name)
+    return flat
+
+
+async def _try_one(url: str, dest_dir: Path, slug: str, attempts: list[str]) -> Path | None:
+    """Fetch one URL; return saved path on success, None if this candidate is done."""
+    rewritten = rewrite_viewer_to_raw(url)
+    if rewritten != url:
+        attempts.append(f"rewrite {url} -> {rewritten}")
+
+    if is_generic_template(rewritten):
+        attempts.append(f"reject template: {rewritten}")
+        return None
+
+    try:
+        body, content_type = await with_retries(
+            lambda: asyncio.to_thread(_get_bytes, rewritten),
+            parse_attempts=1,
+            classify=_classify_http,
+        )
+    except Exception as exc:
+        attempts.append(f"fail {rewritten}: {exc}")
+        return None
+
+    if looks_like_html(body, content_type):
+        attempts.append(f"reject html: {rewritten}")
+        return None
+
+    ext = _ext_for(rewritten, content_type)
+    path = _write_license(dest_dir, slug, ext, body)
+    attempts.append(f"ok {rewritten} -> {path.name}")
+    return path
+
+
+async def fetch_license_file(
+    claude_url: str,
+    purl: str,
+    dest_dir: Path,
+    slug: str,
+) -> DownloadResult:
+    """Download LICENSE from Claude URL (rewritten) or npm/unpkg fallbacks.
+
+    On success: resolved_url is the URL that worked, saved_path is licenses/{slug}.ext.
+    On failure: error set, saved_path None. Attempts always recorded.
+    """
+    original = (claude_url or "").strip()
+    result = DownloadResult(original_url=original)
+    attempts = result.attempts
+
+    if original:
+        path = await _try_one(original, dest_dir, slug, attempts)
+        if path is not None:
+            # Last attempt line names the rewritten URL; recover it.
+            resolved = rewrite_viewer_to_raw(original)
+            result.resolved_url = resolved
+            result.saved_path = path
+            return result
+    else:
+        attempts.append("no claude url")
+
+    candidates = npm_candidates(purl)
+    if not (purl or "").strip():
+        attempts.append("empty purl: skip npm fallback")
+    elif not candidates:
+        attempts.append("non-npm purl: skip npm fallback")
+
+    for candidate in candidates:
+        path = await _try_one(candidate, dest_dir, slug, attempts)
+        if path is not None:
+            result.resolved_url = rewrite_viewer_to_raw(candidate)
+            result.saved_path = path
+            return result
+
+    result.error = "download_failed"
+    return result
