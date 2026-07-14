@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import unquote, urlsplit, urlunsplit
@@ -135,10 +134,6 @@ class _HttpFail(Exception):
 def _classify_http(exc: BaseException) -> str:
     if isinstance(exc, _HttpFail):
         return exc.kind
-    if isinstance(exc, (requests.Timeout, requests.ConnectionError)):
-        return "transient"
-    if isinstance(exc, requests.RequestException):
-        return "transient"
     return "hard"
 
 
@@ -179,7 +174,7 @@ def _write_license(dest_dir: Path, slug: str, ext: str, body: bytes) -> Path:
 
     per = dest_dir / "per_component" / slug
     per.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(flat, per / flat.name)
+    (per / flat.name).write_bytes(body)
     return flat
 
 
@@ -196,7 +191,6 @@ async def _try_one(url: str, dest_dir: Path, slug: str, attempts: list[str]) -> 
     try:
         body, content_type = await with_retries(
             lambda: asyncio.to_thread(_get_bytes, rewritten),
-            parse_attempts=1,
             classify=_classify_http,
         )
     except Exception as exc:
