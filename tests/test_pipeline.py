@@ -1,6 +1,7 @@
 import asyncio
 import csv
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import config
 import main
@@ -37,9 +38,17 @@ async def _fake_download(claude_url, purl, dest_dir, slug):
     )
 
 
+async def _fake_copyright(license_text):
+    return {
+        "copyright": "Copyright (c) 2020 Jane Doe",
+        "reasoning": "verbatim notice",
+    }
+
+
 def test_mocked_license_lands_in_results_csv(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
+    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
 
     cfg = config.Config(
         input_file_path=FIXTURE,
@@ -68,7 +77,7 @@ def test_mocked_license_lands_in_results_csv(tmp_path, monkeypatch):
     for row in rows:
         assert row["inferred_license_name"] == "MIT"
         assert row["inferred_license_code_url"] == resolved
-        assert row["inferred_copyright"] == "UNKNOWN"
+        assert row["inferred_copyright"] == "Copyright (c) 2020 Jane Doe"
         slug = row["component_name"]
         story = (out / "per_component" / slug / pipeline.STORY_FILENAME).read_text(
             encoding="utf-8"
@@ -77,12 +86,14 @@ def test_mocked_license_lands_in_results_csv(tmp_path, monkeypatch):
         assert "attempts=1" in story
         assert "timing_s=" in story
         assert "download: chose " + resolved in story
+        assert "copyright: verbatim notice" in story
         assert (out / "licenses" / f"{slug}.txt").is_file()
 
 
 def test_process_records_license_file_path(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
+    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
 
     from input_csv import Component
 
@@ -105,11 +116,13 @@ def test_process_records_license_file_path(tmp_path, monkeypatch):
     assert result.license_file_path.is_file()
     assert result.download_attempts
     assert result.original_license_url.endswith("/blob/main/LICENSE")
+    assert result.inferred_copyright == "Copyright (c) 2020 Jane Doe"
 
 
 def test_empty_purl_noted_in_story(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
+    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
 
     from input_csv import Component
 
@@ -132,3 +145,41 @@ def test_empty_purl_noted_in_story(tmp_path, monkeypatch):
     assert "no purl" in story
     assert "mocked sources ok" in story
     assert "download: chose" in story
+
+
+def test_no_file_copyright_unknown_extractor_not_called(tmp_path, monkeypatch):
+    async def fail_download(claude_url, purl, dest_dir, slug):
+        return DownloadResult(
+            resolved_url="",
+            saved_path=None,
+            error="all candidates failed",
+            original_url=claude_url,
+            attempts=["fail https://example.com"],
+        )
+
+    extract = AsyncMock(side_effect=AssertionError("extract_copyright must not run"))
+    monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
+    monkeypatch.setattr(pipeline, "fetch_license_file", fail_download)
+    monkeypatch.setattr(pipeline, "extract_copyright", extract)
+
+    from input_csv import Component
+
+    comp = Component(
+        component_name="solo@1.0",
+        purl="pkg:npm/solo@1.0",
+        lib_name="solo",
+        version="1.0",
+        slug="solo@1.0",
+        extras={},
+    )
+    run = tmp_path / "run"
+    (run / "per_component" / comp.slug).mkdir(parents=True)
+
+    result = asyncio.run(pipeline.process_component(comp, run, "claude-haiku-4-5"))
+    assert result.inferred_copyright == "UNKNOWN"
+    assert result.license_file_path is None
+    extract.assert_not_awaited()
+    story = (run / "per_component" / comp.slug / pipeline.STORY_FILENAME).read_text(
+        encoding="utf-8"
+    )
+    assert "copyright: skipped (no license file)" in story

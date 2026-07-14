@@ -9,6 +9,7 @@ from pathlib import Path
 
 from claude_client import infer_license
 from config import Config
+from copyright import extract_copyright
 from download import fetch_license_file
 from input_csv import Component
 from results_csv import ResultsWriter
@@ -81,6 +82,20 @@ async def process_component(
             comp.slug,
             f"download: failed ({dl.error or 'unknown'}) timing_s={dl_elapsed:.3f}",
         )
+
+    if result.license_file_path is not None:
+        text = result.license_file_path.read_text(encoding="utf-8", errors="replace")
+        t2 = time.perf_counter()
+        cr = await extract_copyright(text)
+        cr_elapsed = time.perf_counter() - t2
+        result.inferred_copyright = cr["copyright"]
+        append_story(
+            run_dir,
+            comp.slug,
+            f"copyright: {cr['reasoning']} timing_s={cr_elapsed:.3f}",
+        )
+    else:
+        append_story(run_dir, comp.slug, "copyright: skipped (no license file)")
     return result
 
 
