@@ -59,8 +59,6 @@ def tally_grades(
         counter[key] += 1
     out: list[dict[str, str]] = []
     for key, count in sorted(counter.items()):
-        if count == 0:
-            continue
         rec = {cols[i]: key[i] for i in range(len(cols))}
         rec["Count"] = str(count)
         out.append(rec)
@@ -76,10 +74,9 @@ def write_score_csv(
     cols = [c for c in GT_ITEMS if c in gt_columns]
     if not cols:
         return None
-    graded = [grade_row(r, cols) for r in results]
+    graded = [getattr(r, "grades", None) or grade_row(r, cols) for r in results]
     rows = tally_grades(graded, cols)
     fieldnames = cols + ["Count"]
-    path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()

@@ -51,10 +51,6 @@ class ResultsWriter:
         self._writer.writeheader()
         self._file.flush()
 
-    @property
-    def gt_columns(self) -> list[str]:
-        return list(self._gt_columns)
-
     def write_row(self, result: ComponentResult) -> None:
         extras = result.component.extras
         row: dict[str, str] = {
