@@ -60,7 +60,7 @@ decision, nothing more.
 | [P5: copyright_extraction](./P5_copyright_extraction.md)          | fixed GPT-4.1 client, file-only copyright (ADR 0003)                 | P4         | done | 45d6cfd | 2026-07-15 |
 | [P6: cache_all_or_nothing](./P6_cache_all_or_nothing.md)          | cross-run cache keyed on `component_name`, full-success-only (0001)  | P5         | done | 63fb57c | 2026-07-15 |
 | [P7: audit_equality_score](./P7_audit_equality_score.md)          | `is_eq_*` triplets, ladders, URL content-sameness (0002), score.csv  | P5         | done | e022742 | 2026-07-15 |
-| [P8: ops_preflight_progress_summary](./P8_ops_preflight_progress_summary.md) | preflight, progress+ETA, extended CSV, summary.json      | P6, P7     | pending |          |         |
+| [P8: ops_preflight_progress_summary](./P8_ops_preflight_progress_summary.md) | preflight, progress+ETA, extended CSV, summary.json      | P6, P7     | in progress | 2d0e27a | 2026-07-15 |
 
 Filenames use `P{N}_{snake_case_title}.md`. "Depends on" lists phase ids or "-".
 
