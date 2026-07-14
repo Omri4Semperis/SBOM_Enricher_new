@@ -1,5 +1,7 @@
 # HANDOFF — grilling to align terms + goals for SBOM Enricher v2
 
+Consumed: 2026-07-14
+
 - Objective: Grill Omri to lock terminology + goals for a rewrite of the SBOM
   enricher, capturing every decision in living docs (`docs/DECISIONS.md` +
   `docs/CONTEXT.md`) that will later drive a complex-plan creation. Not

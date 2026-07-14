@@ -6,8 +6,9 @@
 >
 > **Companion docs (per domain-modeling conventions):**
 >
-> - `CONTEXT.md` (repo root) — the glossary of domain terms. Sole home of
+> - `docs/CONTEXT.md` — the glossary of domain terms. Sole home of
 > terminology; this log references terms, it doesn't define them.
+> - `docs/BACKLOG.md` — deferred levers + accepted residual risks (parking lot).
 > - `docs/adr/` — Architecture Decision Records for durable, hard-to-reverse
 > decisions. Offered at session close, not written mid-grill.
 
@@ -29,20 +30,20 @@ active only when ground-truth columns are present.
 - [x] Goals and non-goals
 - [x] Scope boundaries
 
-- [x] Input / output contract (identifiers, parsing, layout, column order, encoding LOCKED)
+- [x] Input / output contract (identifiers, layout, column order, encoding, summary.json costs LOCKED)
 
-- [x] Enrichment pipeline (inference → download → copyright)
+- [x] Enrichment pipeline (v2 copyright = file-only; fallbacks → backlog #4)
 - [x] Equality / comparison
 - [x] Scoring (`score.csv`)
-- [x] LLM contracts (license + copyright + equality-judge schemas + model fixed-vs-configurable LOCKED)
+- [x] LLM contracts (license + copyright + equality-judge schemas + model fixed-vs-configurable + prompting inspiration LOCKED)
 - [x] Failure handling (retry/backoff + run-level continue/fail-fast)
 - [x] Config / ops (cache, workers, `default.json`, key naming, progress bar)
 - [x] Security / credentials
-- [ ] Open risks / deferred
+- [x] Open risks / deferred (levers + residual risks → `docs/BACKLOG.md`)
 
-- [~] Domain terms (glossary seeded in `CONTEXT.md`, growing)
+- [~] Domain terms (glossary seeded in `docs/CONTEXT.md`, growing)
 
-- [ ] Decision recording (ADRs offered at close)
+- [x] Decision recording (recap signed off 2026-07-14)
 
 ---
 
@@ -87,9 +88,32 @@ results_{model_short}_{n}_extended.csv  everything: raw responses per LLM,
                                         normalized + un-normalized values,
                                         approximate costs, cache hit/miss, per phase
 summary.json      run info: paths, run id, run name (if config supplies one),
-                  model, workers, components count, start/end time (UTC)
+                  model, workers, components count, start/end time (UTC),
+                  plus costs + timings (see summary.json costs & timings below)
 score.csv         hit/mismatch/unknown tally (audit mode only)
 ```
+
+### `summary.json` costs & timings — [LOCKED]
+
+Run-level aggregates only (per-row call detail stays in `results_extended.csv`
+/ Story). Shape inspired by old `run_info.json` + `config.MODEL_PRICING` /
+`compute_cost`:
+
+- **Claude (license inference):** prefer CLI `total_cost_usd` when present.
+- **GPT-4.1 / equality judge:** tokens × ported `MODEL_PRICING` +
+  `compute_cost`. Missing/unknown price ⇒ record as unknown cost, **not** `$0`.
+- **Cost buckets (per phase):** license inference · copyright extraction ·
+  equality judges (`license` / `url` / `copyright`) — each with
+  `total_usd`, `avg_per_row_usd`, `unknown_cost_calls`, and
+  `saved_by_cache_usd` where cache applies. No consistency-judge bucket (dropped
+  in v2).
+- **Time:** wall-clock total + `avg_seconds_per_row`; plus **per-phase
+  averages** (infer / download / copyright / equality) from Story timings.
+  Download is time-only (no LLM cost).
+- **Aggregates:** `costs.total_usd`, `costs.avg_per_row_usd`, plus a
+  bottom-line time block.
+- **Pricing table** lives in source (ops constant), **not** `default.json` —
+  same stance as retry constants.
 
 ### Identifiers & parsing — [LOCKED]
 
@@ -105,6 +129,14 @@ the purl as the deterministic key for npm/unpkg license-file fallback.)
 - Directory/file names use a **sanitized** `component_name` (filesystem-unsafe
 chars replaced). The raw `component_name` + `purl` are preserved inside each
 `per_component/` dir (e.g. a small `meta.json`) so the mapping is never lost.
+- **Sanitized-path collision → fail-fast at startup** — [LOCKED]: after
+building the slug map for the whole input, if two distinct `component_name`s
+sanitize to the same filesystem path, abort before any work with a message
+listing the colliding raw names + shared slug. Same class of problem as
+duplicate `component_name` (would overwrite `licenses/` / `per_component/`).
+**No auto-suffix** (`_2`) — that hides identity bugs and breaks the
+cache-key ↔ on-disk-name story. (Slug rules can mirror old `make_slug`:
+replace `\ / : * ? " < > |` with `_`.)
 
 ### License inference step — [LOCKED]
 
@@ -150,8 +182,9 @@ by an LLM (GPT-4.1). Returns JSON
 (see the locked LLM contract below — supersedes the earlier `found: bool` idea).
 - The value is the **full copyright statement as it appears** in the file
 (verbatim, trimmed) — e.g. `Copyright (c) 2020 Jane Doe` — not just the holder.
-- **No fallbacks.** File missing, or file has no holder ⇒ `inferred_copyright`
-= `UNKNOWN`.
+- **No fallbacks in v2.** File missing, or file has no holder ⇒ `inferred_copyright`
+= `UNKNOWN`. Old npm-author + Claude web copyright fallbacks are **deferred**
+(backlog lever #4) — pull if file-only yields too many copyright `UNKNOWN`s.
 
 ### Equality / comparison — [LOCKED]
 
@@ -470,12 +503,32 @@ the attempts are exhausted does the run fail-fast.
 - Auth/connectivity that dies **mid-run** still falls under the locked
 "no circuit-breaker, all-`UNKNOWN`, user Ctrl-C" run-level stance.
 
+### Prompting — [LOCKED]
+
+v2 prompts take **inspiration** from `knowledge/old_code/src/config.py`
+(license inference, copyright extraction, equality judge, lookup hierarchy,
+anti-template rules, etc.) — **not a verbatim port**. Reuse battle-tested
+rules/wording where they still apply; rewrite freely where contracts changed
+(field names, `TRUE`/`FALSE` verdicts, no consistency judge, file-only
+copyright). Prompts live in v2 source; old `config.py` is reference-only
+(never loaded at runtime).
+
+### Deferred levers + residual risks — [LOCKED]
+
+Full parking lot lives in **`docs/BACKLOG.md`** (source of truth for "later"):
+
+- **Deferred levers:** restore consistency judge; broaden deterministic
+  download fallback past npm/unpkg; mid-run circuit-breaker; restore
+  copyright fallbacks (npm-author → Claude web); promote GPT-4.1 to a
+  config knob (trivial). Owner: Omri — pull only when a real run forces it.
+- **Accepted residual risks (no new mitigations in v2):** cost/time runaway
+  (no budget/wall-clock cap); stale cache (operator-owned invalidation);
+  provider rate limits → per-row `UNKNOWN`; wrong-but-confident enrichment
+  without consistency judge.
+- **Non-goals** reiterated in the backlog so they don't reappear as maybes
+  (vulns, graphs, UI, old-code port, non-CSV input, multi-file batching).
+
 ## Open questions (next up)
 
-- Input/output contract details: exact `results.csv` column order, encoding.
-- Equality/normalization rules and the LLM-judge boundary (mostly locked).
-- LLM contracts (JSON schemas, which model per role).
-- Failure handling per stage (fail-fast vs continue) + the retry/backoff item
-above.
-- Security/credentials (Azure `DefaultAzureCredential`, Claude CLI auth).
-- Scope boundaries; open risks / deferred; ADRs at close.
+None — grilling signed off 2026-07-14. Living sources of truth:
+`docs/DECISIONS.md`, `docs/CONTEXT.md`, `docs/BACKLOG.md`.
