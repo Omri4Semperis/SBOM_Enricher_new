@@ -196,7 +196,7 @@ Next action: P2 (input_run_dir_stub)
 ## Outcome
 
 Objective: test harness + validated config loader
-HEAD: PENDING | Branch: master
+HEAD: 8910479 | Branch: master
 Files changed:
 - docs/plans/v2-enricher/P1_scaffold_and_config.md
 - docs/plans/v2-enricher/PLAN.md
