@@ -27,17 +27,17 @@ active only when ground-truth columns are present.
 ## Branch status
 
 - [x] Goals and non-goals
-- [ ] Scope boundaries
+- [x] Scope boundaries
 
-- [~] Input / output contract (identifiers + parsing locked; column order open)
+- [x] Input / output contract (identifiers, parsing, layout, column order, encoding LOCKED)
 
 - [x] Enrichment pipeline (inference → download → copyright)
 - [x] Equality / comparison
 - [x] Scoring (`score.csv`)
-- [~] LLM contracts (license + copyright schemas LOCKED; equality-judge schema open)
+- [x] LLM contracts (license + copyright + equality-judge schemas + model fixed-vs-configurable LOCKED)
 - [x] Failure handling (retry/backoff + run-level continue/fail-fast)
 - [x] Config / ops (cache, workers, `default.json`, key naming, progress bar)
-- [ ] Security / credentials
+- [x] Security / credentials
 - [ ] Open risks / deferred
 
 - [~] Domain terms (glossary seeded in `CONTEXT.md`, growing)
@@ -261,11 +261,13 @@ functional gain.
 
 - Keep the old code's **live progress bar** (block-glyph bar +
 `done/total`), extended with an **ETA**. Example shape:
+
   ```py
   def progress_bar(done: int, total: int, width: int = 35) -> str:
       filled = int(width * done / total) if total else 0
       return f"[{'█' * filled}{'░' * (width - filled)}] {done}/{total}"
   ```
+
 - ETA derived from elapsed time and completed-component rate.
 
 ### Retry / backoff policy — [LOCKED]
@@ -343,6 +345,131 @@ consistent with the license-inference contract (sentinel + always a
 `reasoning`). `reasoning` feeds the Story. Maps to the `inferred_copyright`
 column. No fallbacks (locked): no file / no holder ⇒ `UNKNOWN`.
 
+### LLM contract — equality judge (GPT-4.1) — [LOCKED]
+
+The third rung of the equality ladder for **all three** comparison kinds
+(license name, copyright, URL-content sameness). Output:
+
+```json
+{ "verdict": "TRUE" | "FALSE", "reasoning": "<one sentence>" }
+```
+
+- **One uniform output schema across all three kinds** — the *prompt* varies
+by kind (the old code's `kind` param), the *output shape* does not.
+- `verdict` uses **`TRUE`/`FALSE`** (not the old bare `YES`/`NO`) so it maps
+1:1 to the `is_eq_*` column and filters cleanly in Excel during later
+analysis.
+- Replaces the old bare-text `YES`/`NO` verdict with the same
+`{ value, reasoning }` shape as the other two contracts. `reasoning` feeds
+the Story + `results_extended.csv`, so a `FALSE` from the judge is never
+ambiguous.
+- The judge **always commits** to `TRUE`/`FALSE` — no `UNKNOWN` here (a
+missing/failed ground-truth download resolves to `is_eq_url = FALSE` upstream
+before the judge is ever called; see the Equality/comparison decision).
+
+### Model: fixed vs configurable per role — [LOCKED]
+
+- **Claude (license inference) is the one configurable model** — the `model`
+knob in `default.json`, validated against the fixed allow-list. It does the
+main heavy lifting, so it's deliberately swappable to compare **cost, time,
+and accuracy** across Claude models run-to-run.
+- **GPT-4.1 (copyright extraction + equality judge) is fixed** — a hard-coded
+Azure deployment name (`gpt-4.1-limitless`), **not** a `default.json` field.
+It's auxiliary plumbing, not the thing being benchmarked; keeps the config
+surface minimal. Promoting it to a knob later is a trivial change if a second
+GPT deployment ever appears.
+
+### Main `results.csv` column order — [LOCKED]
+
+`results_{model_short}_{n}.csv` = input + `inferred_*` + `is_eq_*`, ordered so
+each item's **ground-truth → inferred → verdict** triplet sits together
+(reads across three adjacent columns in Excel):
+
+```txt
+component_name, purl,
+license_name,      inferred_license_name,      is_eq_license_name,
+license_code_url,  inferred_license_code_url,  is_eq_license_code_url,
+copyright,         inferred_copyright,         is_eq_copyright
+```
+
+- **Fixed leading columns:** `component_name`, `purl`.
+- **Per-item triplet** (one block per enrichment item): the ground-truth
+column (only if supplied) → the `inferred_*` column (always) → the `is_eq_*`
+column (only if that item's ground-truth was supplied).
+- **Degradation:** no ground truth for an item ⇒ that item collapses to just
+its `inferred_*` column (no GT column, no `is_eq_*`). Non-audit run (no GT at
+all) ⇒ only `component_name, purl, inferred_license_name,
+inferred_license_code_url, inferred_copyright`.
+- **Assumption (flag if wrong):** any *extra* passthrough input columns
+outside this known set are preserved at the **end**, in original input order.
+- The exhaustive per-LLM / cost / cache / raw-response columns live in
+`results_{model_short}_{n}_extended.csv`, not here.
+
+### CSV encoding & writer — [LOCKED]
+
+- **Encoding:** `utf-8-sig` (UTF-8 + BOM) so Excel opens license/copyright
+text (accents, `©`, curly quotes) correctly on double-click without the
+import wizard. Applies to all CSVs (`results`, `results_extended`, `score`).
+- **Writer:** stdlib `csv.DictWriter` with `newline=""` (→ `\r\n`). No pandas
+dependency — this is row-writing, and `DictWriter` streams rows as workers
+finish, so partial results survive a Ctrl-C/crash (fits "one bad component
+never discards the good ones"). `score.csv` is a small tally — same tool.
+- Decision **delegated to the assistant** by Omri ("write plain csv, easiest
+way, any package"); recorded here so the later plan doesn't re-litigate it.
+
+### Scope boundaries — per-row purl & ecosystem — [LOCKED]
+
+- **Empty/malformed `purl` cell** (column present, value missing on a row):
+**does not fail the run** — the row proceeds under the per-component continue
+policy. Claude still gets `lib_name`/`version` context, but the deterministic
+npm fallback (needs a purl) is skipped, so the row likely resolves to
+`UNKNOWN`; the Story records "no purl → degraded inference." Fail-fast stays
+reserved for structural problems (missing column, duplicate key).
+- **Deterministic download fallback is npm/unpkg only** for v2. Every other
+ecosystem (PyPI, Maven, Cargo, …) relies purely on Claude's `WebSearch`/
+`WebFetch` to locate the raw LICENSE URL. Broadening the deterministic
+fallback per ecosystem is explicitly **out of scope** (a "later" lever, like
+restoring the consistency judge).
+
+### Scope boundaries — input format — [LOCKED]
+
+- **CSV only** for input; no `.xlsx`/`.json`/TSV ingestion (export to CSV
+first). Matches the CSV-locked output side and keeps parsing to the stdlib
+`csv` reader.
+- **One input file per run** (the single `input_file_path`); no directory/glob
+multi-file batching.
+
+### Security / credentials — [LOCKED]
+
+- **No secrets in our code or `default.json`.** Azure roles (GPT-4.1 copyright
+extraction + equality judge) authenticate via `DefaultAzureCredential`
+(`az login` locally / managed identity in CI). Claude authenticates via the
+local `claude` CLI's own logged-in session (subprocess). The hard-coded
+endpoint/deployment URLs (`ai-foundry-rnd-dev...`, `gpt-4.1-limitless`, the
+equality-judge agent name/version) are **non-secret** and stay in source.
+- **No token/credential is ever written** to Stories, raw-response files,
+`summary.json`, or any CSV.
+- No API-key / env-var auth path for v2 — ambient credential providers only.
+
+### Startup connectivity preflight → fail-fast — [LOCKED]
+
+- Before spawning any workers, **probe both LLM providers** — a trivial
+`claude` invocation and an Azure token acquisition
+(`DefaultAzureCredential.get_token`, and/or a minimal GPT-4.1 call). If a
+provider is unreachable/unauthenticated after the preflight, **fail-fast**
+with a clear message rather than burning a full run of 401s/timeouts.
+- **Preflight is itself retried** — this check can make or break a whole run,
+so a single transient blip must not abort it. **At least 3 attempts** per
+provider with **increasing *deterministic* backoffs** (no jitter — this is a
+startup gate, not load-shedding across workers; e.g. 2s, 4s, 6s). Only after
+the attempts are exhausted does the run fail-fast.
+  - Distinct from the mid-run retry policy (transient: 3 attempts, #2
+  jittered; parse: 2 attempts). The preflight is deterministic and exists
+  purely to distinguish "endpoint temporarily flaky" from "endpoint/auth
+  genuinely broken" at startup.
+- Auth/connectivity that dies **mid-run** still falls under the locked
+"no circuit-breaker, all-`UNKNOWN`, user Ctrl-C" run-level stance.
+
 ## Open questions (next up)
 
 - Input/output contract details: exact `results.csv` column order, encoding.
@@ -352,4 +479,3 @@ column. No fallbacks (locked): no file / no holder ⇒ `UNKNOWN`.
 above.
 - Security/credentials (Azure `DefaultAzureCredential`, Claude CLI auth).
 - Scope boundaries; open risks / deferred; ADRs at close.
-

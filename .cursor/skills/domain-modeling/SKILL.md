@@ -20,10 +20,9 @@ edit the files themselves.
 
 Before any challenge, update, or create: use the Glob tool for
 `**/CONTEXT-MAP.md`, then `**/CONTEXT.md`. A map → read it, pick the context the topic belongs to
-(unclear → ask); only a root CONTEXT.md → single context; neither → no
-glossary exists yet — create one lazily at the first recorded term, at the
-repo root unless a map is being introduced. Never create a root CONTEXT.md
-in a repo whose map places contexts elsewhere.
+(unclear → ask); only a `docs/CONTEXT.md` → single context; neither → no
+glossary exists yet — create one lazily at the first recorded term, in
+`docs/` unless a map is being introduced. Never create a `docs/CONTEXT.md`
 
 ## When invoked by another skill
 
@@ -35,12 +34,12 @@ immediately.
 
 ## File structure
 
-Most repos have a single context: a root `CONTEXT.md` with `docs/adr/` alongside it. A `CONTEXT-MAP.md` at the root means multiple contexts; it points to where each one lives:
+Most repos have a single context: `docs/CONTEXT.md` with `docs/adr/` alongside it. A `CONTEXT-MAP.md` in `docs/` means multiple contexts; it points to where each one lives:
 
 ```txt
 /
-├── CONTEXT-MAP.md
 ├── docs/
+│   ├── CONTEXT-MAP.md
 │   └── adr/                          ← system-wide decisions
 ├── src/
 │   ├── ordering/
