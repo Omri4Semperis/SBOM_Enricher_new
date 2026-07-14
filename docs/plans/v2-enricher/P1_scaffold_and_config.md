@@ -31,6 +31,15 @@ Run each; all must hold before any other work. If any fails, follow
 2. **pytest install:** `pip install pytest` into `.venv` only (pytest 9.1.1);
    not added to `requirements.txt` (repo has none for dev deps), as directed.
 
+## Validation review notes
+
+Fresh review ([P1 diff review](f0aeb5b3-df5a-450f-ac4f-74e10d9d768f)): **PASS**, no must-fix findings.
+Doc-ordered / record-only lens notes (not fixed):
+- `conftest.py` sys.path insert — required by T1
+- full `MODEL_CHOICES` seed — required
+- private helpers under `load_config` — fine, not schemas/env layers
+- `__future__ annotations` cosmetic on 3.13 — unused for `|` syntax
+
 ## Context capsule
 
 - Repo is greenfield for source: `src/` and `tests/` exist but are **empty**.
@@ -183,3 +192,24 @@ Assumptions: {numbered, or "none"}
 Open questions: {numbered, or "none"}
 Next action: P2 (input_run_dir_stub)
 ```
+
+## Outcome
+
+Objective: test harness + validated config loader
+HEAD: PENDING | Branch: master
+Files changed:
+- docs/plans/v2-enricher/P1_scaffold_and_config.md
+- docs/plans/v2-enricher/PLAN.md
+- src/config.py
+- tests/conftest.py
+- tests/test_config.py
+Commands run:
+- `pip install pytest` → pytest 9.1.1 installed in `.venv`
+- `pytest -q` (T1, 0 tests) → exit 5 (deviation; accepted)
+- `python -c "... load_config(...).model"` → `claude-opus-4-8`
+- `pytest -q` (T3/gate/exit) → 6 passed, exit 0
+- `python -c "... load_config('configs/default.json')"` → exit 0
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 6 passed
+Assumptions: none
+Open questions: none
+Next action: P2 (input_run_dir_stub)
