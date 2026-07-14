@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from claude_client import infer_license
 from config import Config
+from download import fetch_license_file
 from input_csv import Component
 from results_csv import ResultsWriter
 
@@ -21,6 +22,9 @@ class ComponentResult:
     inferred_license_name: str = "UNKNOWN"
     inferred_license_code_url: str = "UNKNOWN"
     inferred_copyright: str = "UNKNOWN"
+    license_file_path: Path | None = None
+    download_attempts: list[str] = field(default_factory=list)
+    original_license_url: str = ""
 
 
 def story_path(run_dir: Path, slug: str) -> Path:
@@ -46,12 +50,37 @@ async def process_component(
 
     result.inferred_license_name = data["license_name"]
     result.inferred_license_code_url = data["license_code_url"]
+    result.original_license_url = data["license_code_url"]
     append_story(
         run_dir,
         comp.slug,
         f"license: {data['reasoning']} attempts={data.get('attempts', '?')} "
         f"timing_s={elapsed:.3f}",
     )
+
+    t1 = time.perf_counter()
+    dl = await fetch_license_file(
+        data["license_code_url"], comp.purl, run_dir, comp.slug
+    )
+    dl_elapsed = time.perf_counter() - t1
+    result.download_attempts = list(dl.attempts)
+    for line in dl.attempts:
+        append_story(run_dir, comp.slug, f"download: {line}")
+
+    if dl.ok:
+        result.inferred_license_code_url = dl.resolved_url
+        result.license_file_path = dl.saved_path
+        append_story(
+            run_dir,
+            comp.slug,
+            f"download: chose {dl.resolved_url} timing_s={dl_elapsed:.3f}",
+        )
+    else:
+        append_story(
+            run_dir,
+            comp.slug,
+            f"download: failed ({dl.error or 'unknown'}) timing_s={dl_elapsed:.3f}",
+        )
     return result
 
 
