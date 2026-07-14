@@ -10,6 +10,7 @@ import run_dir
 from download import DownloadResult
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "mini.csv"
+AUDIT_FIXTURE = Path(__file__).resolve().parent / "fixtures" / "mini_audit.csv"
 
 
 async def _fake_infer(purl, lib_name, version, model):
@@ -301,3 +302,80 @@ def test_cache_write_skips_unknown_copyright(tmp_path, monkeypatch):
     )
     assert read_cache(cache_dir, "solo@1.0") is None
     assert not (cache_dir / "cache.csv").exists()
+
+
+def test_audit_fixture_triplets_and_score(tmp_path, monkeypatch):
+    import equality
+
+    monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
+    monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
+    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
+    monkeypatch.setattr(equality, "fetch_license_file", _fake_download)
+    monkeypatch.setattr(pipeline, "Gpt41Client", lambda: AsyncMock())
+
+    cfg = config.Config(
+        input_file_path=AUDIT_FIXTURE,
+        output_base_path=tmp_path / "runs",
+        run_name=None,
+        model="claude-opus-4-8",
+        workers=1,
+        cache_read=None,
+        cache_write=None,
+    )
+    out = main.run(cfg)
+    results_path = out / run_dir.results_csv_name(cfg.model, 1)
+    with results_path.open(newline="", encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+    assert list(rows[0].keys())[:11] == [
+        "component_name",
+        "purl",
+        "license_name",
+        "inferred_license_name",
+        "is_eq_license_name",
+        "license_code_url",
+        "inferred_license_code_url",
+        "is_eq_license_code_url",
+        "copyright",
+        "inferred_copyright",
+        "is_eq_copyright",
+    ]
+    assert rows[0]["is_eq_license_name"] == "TRUE"
+    assert rows[0]["is_eq_copyright"] == "TRUE"
+    assert rows[0]["is_eq_license_code_url"] == "TRUE"
+    score_path = out / "score.csv"
+    assert score_path.is_file()
+    with score_path.open(newline="", encoding="utf-8-sig") as f:
+        score_rows = list(csv.DictReader(f))
+    assert score_rows
+    assert score_rows[0]["Count"] == "1"
+    assert score_rows[0]["license_name"] == "h"
+
+
+def test_non_gt_fixture_no_is_eq_no_score(tmp_path, monkeypatch):
+    monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
+    monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
+    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
+
+    cfg = config.Config(
+        input_file_path=FIXTURE,
+        output_base_path=tmp_path / "runs",
+        run_name=None,
+        model="claude-opus-4-8",
+        workers=2,
+        cache_read=None,
+        cache_write=None,
+    )
+    out = main.run(cfg)
+    results_path = out / run_dir.results_csv_name(cfg.model, 3)
+    with results_path.open(newline="", encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+    keys = list(rows[0].keys())
+    assert keys == [
+        "component_name",
+        "purl",
+        "inferred_license_name",
+        "inferred_license_code_url",
+        "inferred_copyright",
+        "notes",
+    ]
+    assert not (out / "score.csv").exists()

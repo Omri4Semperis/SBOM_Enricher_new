@@ -12,8 +12,11 @@ from claude_client import infer_license
 from config import Config
 from copyright import extract_copyright
 from download import fetch_license_file
+from equality import compare_copyright, compare_name, compare_url_content
+from gpt41_client import Gpt41Client
 from input_csv import Component
 from results_csv import ResultsWriter
+from scoring import grade_row
 
 STORY_FILENAME = "story.txt"
 
@@ -28,6 +31,13 @@ class ComponentResult:
     download_attempts: list[str] = field(default_factory=list)
     original_license_url: str = ""
     from_cache: bool = False
+    is_eq_license_name: str = ""
+    is_eq_license_code_url: str = ""
+    is_eq_copyright: str = ""
+    eq_license_name_reason: str = ""
+    eq_license_code_url_reason: str = ""
+    eq_copyright_reason: str = ""
+    grades: dict[str, str] = field(default_factory=dict)
 
 
 def story_path(run_dir: Path, slug: str) -> Path:
@@ -119,24 +129,78 @@ async def process_component(
     return result
 
 
+async def apply_equality(
+    result: ComponentResult,
+    run_dir: Path,
+    gt_columns: list[str],
+    client: Gpt41Client | None,
+) -> None:
+    """Fill is_eq_* / reasons / grades when audit GT columns are present."""
+    if not gt_columns:
+        return
+    extras = result.component.extras
+    slug = result.component.slug
+
+    if "license_name" in gt_columns:
+        eq = await compare_name(
+            result.inferred_license_name,
+            extras.get("license_name", ""),
+            client=client,
+        )
+        result.is_eq_license_name = eq.verdict
+        result.eq_license_name_reason = eq.reason
+        append_story(run_dir, slug, f"is_eq_license_name={eq.verdict} ({eq.reason})")
+
+    if "license_code_url" in gt_columns:
+        eq = await compare_url_content(
+            result.inferred_license_code_url,
+            extras.get("license_code_url", ""),
+            run_dir,
+            slug,
+            client=client,
+        )
+        result.is_eq_license_code_url = eq.verdict
+        result.eq_license_code_url_reason = eq.reason
+        append_story(
+            run_dir, slug, f"is_eq_license_code_url={eq.verdict} ({eq.reason})"
+        )
+
+    if "copyright" in gt_columns:
+        eq = await compare_copyright(
+            result.inferred_copyright,
+            extras.get("copyright", ""),
+            client=client,
+        )
+        result.is_eq_copyright = eq.verdict
+        result.eq_copyright_reason = eq.reason
+        append_story(run_dir, slug, f"is_eq_copyright={eq.verdict} ({eq.reason})")
+
+    result.grades = grade_row(result, gt_columns)
+
+
 async def run_workers(
     config: Config,
     components: list[Component],
     run_dir: Path,
     writer: ResultsWriter,
+    gt_columns: list[str] | None = None,
 ) -> list[ComponentResult]:
+    gt_columns = list(gt_columns or [])
+    client = Gpt41Client() if gt_columns else None
     sem = asyncio.Semaphore(config.workers)
     results: list[ComponentResult] = []
 
     async def one(comp: Component) -> ComponentResult:
         async with sem:
-            return await process_component(
+            result = await process_component(
                 comp,
                 run_dir,
                 config.model,
                 cache_read=config.cache_read,
                 cache_write=config.cache_write,
             )
+            await apply_equality(result, run_dir, gt_columns, client)
+            return result
 
     tasks = [asyncio.create_task(one(c)) for c in components]
     for finished in asyncio.as_completed(tasks):

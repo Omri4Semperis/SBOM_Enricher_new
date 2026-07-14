@@ -1,0 +1,2 @@
+component_name,purl,license_name,license_code_url,copyright,notes
+pkg@1.0,pkg:npm/pkg@1.0,MIT,https://github.com/foo/bar/blob/main/LICENSE,Copyright (c) 2020 Jane Doe,audit-row
