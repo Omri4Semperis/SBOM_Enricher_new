@@ -145,3 +145,31 @@ Phase-notes, report and stop.
 3. Reflect into Phase-notes: cache index format + `read_cache`/`write_cache`
    signatures, the `from_cache` signal name P8 reads for `saved_by_cache_usd`.
 4. Record full **Outcome** here (same shape as P1's).
+
+## Outcome
+
+Objective: cross-run cache keyed on `component_name`, full-success-only (ADR 0001)
+HEAD: 6148825 | Branch: master
+Files changed:
+- docs/plans/v2-enricher/PLAN.md
+- docs/plans/v2-enricher/P6_cache_all_or_nothing.md
+- src/cache.py
+- src/pipeline.py
+- tests/test_cache.py
+- tests/test_pipeline.py
+Commands run:
+- Entry: `pytest -q` → 50 passed; porcelain empty; baseline `63fb57c`
+- T1: `pytest -q tests/test_cache.py -k store` → 4 passed
+- T2+T3: `pytest -q tests/test_pipeline.py -k cache` → 3 passed;
+  `-k cache_write` → 2 passed (wired in one commit — deviation)
+- Gate: `pytest -q` → 57 passed; review PASS; post-fix `pytest -q` → 58 passed
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 58 passed
+Assumptions: none
+Deviations:
+- T2 (hit) and T3 (write) committed together as one pipeline wiring change.
+- `restore_license_file` helper added in `cache.py` (doc implied restore in
+  pipeline; helper keeps `_write_license`-shaped copy logic in one place).
+Review notes (ordered, not fixed): restore duplicates `download._write_license`
+shape — doc ordered restore here.
+Open questions: none
+Next action: P7 (audit_equality_score) — also unlocks P8 once P7 is done
