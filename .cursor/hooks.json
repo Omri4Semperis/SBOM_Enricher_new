@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "python .cursor/skills/git-hygiene/scripts/git_hygiene_scan.py --hook",
+        "matcher": "\\bgit\\b.*\\bcommit\\b"
+      }
+    ],
+    "preCompact": [
+      {
+        "command": "python .cursor/skills/handoff/scripts/precompact_backup.py"
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "_comment": [
+    "Merge into the target repo's .cursor/hooks.json when installing the",
+    "git-hygiene skill (create the file with \"version\": 1 if missing).",
+    "beforeShellExecution matcher filters to git-commit-ish commands; the",
+    "script also re-checks. Exit 2 (or permission deny JSON) blocks the commit",
+    "and tells the agent to run the git-hygiene skill. Fails open: scanner",
+    "errors never block commits. Guards only agent-made commits, not the",
+    "user's terminal. Post-install path assumes the skill lives at",
+    ".cursor/skills/git-hygiene/."
+  ],
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "python .cursor/skills/git-hygiene/scripts/git_hygiene_scan.py --hook",
+        "matcher": "\\bgit\\b.*\\bcommit\\b"
+      }
+    ]
+  }
+}
