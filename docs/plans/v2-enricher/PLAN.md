@@ -55,7 +55,7 @@ decision, nothing more.
 | -                                                                 | -                                                                    | -          | -       | -        | -       |
 | [P1: scaffold_and_config](./P1_scaffold_and_config.md)            | pytest in venv, `src` package, load + validate `default.json`        | -          | done | c221171 | 2026-07-14 |
 | [P2: input_run_dir_stub](./P2_input_run_dir_stub.md)              | CSV validate + parse, run dir + input copies, stub worker pipeline   | P1         | done | f65cd87 | 2026-07-14 |
-| [P3: license_inference](./P3_license_inference.md)                | Claude client + license JSON contract + retry, wired into pipeline   | P2         | in progress | 234411c | 2026-07-14 |
+| [P3: license_inference](./P3_license_inference.md)                | Claude client + license JSON contract + retry, wired into pipeline   | P2         | done | 234411c | 2026-07-14 |
 | [P4: license_download](./P4_license_download.md)                  | viewer→raw rewrite, HTML reject, npm/unpkg fallback, save files      | P3         | pending |          |         |
 | [P5: copyright_extraction](./P5_copyright_extraction.md)          | fixed GPT-4.1 client, file-only copyright (ADR 0003)                 | P4         | pending |          |         |
 | [P6: cache_all_or_nothing](./P6_cache_all_or_nothing.md)          | cross-run cache keyed on `component_name`, full-success-only (0001)  | P5         | pending |          |         |
@@ -126,7 +126,14 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   inference"). Retry policy helper (transient 3 attempts, parse 2 attempts,
   locked backoff values) lives in `src/retry.py` and is reused by P5. Sets
   `inferred_license_name` + `inferred_license_code_url` on the result object.
-- **Notes:**
+- **Notes:** Done. `async infer_license(...) -> dict` with contract keys plus
+  `attempts` (Story-only). Fail-closed: `UNKNOWN` / `""` / reason.
+  `async with_retries(fn, *, transient_attempts=3, parse_attempts=2, classify)
+  -> T` in `src/retry.py` (hard re-raises; sleeps 2s then U[3,8] / parse 1s).
+  Prompts in `src/prompts.py`: `license_prompt(...) -> (str, dict)` +
+  `LICENSE_SCHEMA`. Pipeline: `process_component(comp, run_dir, model)` —
+  gained `model` vs P2. Review PASS (lean). Tests use `asyncio.run` (no
+  pytest-asyncio).
 - **Incoming comments:**
 
 ### P4: license_download

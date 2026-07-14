@@ -16,10 +16,10 @@ still stubbed; copyright still `UNKNOWN`.
 
 ## Entry criteria
 
-- [ ] Read this phase's block in `PLAN.md`, including any **Incoming comments**
-- [ ] P2 Status is `done`
-- [ ] `.\.venv\Scripts\python.exe -m pytest -q` → exit 0, all passed
-- [ ] `git status --porcelain` → empty
+- [x] Read this phase's block in `PLAN.md`, including any **Incoming comments**
+- [x] P2 Status is `done`
+- [x] `.\.venv\Scripts\python.exe -m pytest -q` → exit 0, all passed
+- [x] `git status --porcelain` → empty
 
 ## Context capsule
 
@@ -165,3 +165,35 @@ Phase-notes, report and stop.
 3. Reflect into Phase-notes: final `infer_license` signature/return, the
    `with_retries` signature (P5 reuses it), where prompts live.
 4. Record full **Outcome** here (same shape as P1's).
+
+## Deviations
+
+- `process_component(comp, run_dir, model)` — added `model` (P2 had two args).
+- `infer_license` return includes extra `attempts` int for Story (not in the
+  three-field LLM contract).
+- Tests wrap async with `asyncio.run` — no `pytest-asyncio` in venv.
+
+## Outcome
+
+Objective: Claude license inference + locked retry, wired into pipeline
+HEAD: {fill after completion commit} | Branch: master
+Files changed:
+- docs/plans/v2-enricher/PLAN.md
+- docs/plans/v2-enricher/P3_license_inference.md
+- src/claude_client.py
+- src/pipeline.py
+- src/prompts.py
+- src/retry.py
+- tests/test_claude_client.py
+- tests/test_pipeline.py
+- tests/test_retry.py
+Commands run:
+- Entry: `pytest -q` → 15 passed; porcelain empty; baseline `234411c`
+- T1: `pytest -q tests/test_retry.py` → 5 passed
+- T2: `pytest -q tests/test_claude_client.py` → 5 passed
+- T3/gate: `pytest -q` → 26 passed
+- Fresh review (readonly subagent on `git diff 234411c..HEAD`) → PASS, lean
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 26 passed
+Assumptions: empty `license_code_url` stored as-is (not coerced to UNKNOWN)
+Open questions: none
+Next action: P4 (license_download)
