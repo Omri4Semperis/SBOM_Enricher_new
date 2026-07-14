@@ -51,3 +51,72 @@ def test_client_garbage_parse_retry_then_error(monkeypatch):
         asyncio.run(Gpt41Client().complete_json("sys", "user"))
     assert state["i"] == 2  # PARSE_ATTEMPTS
     assert client.chat.completions.create.await_count == 2
+
+
+MIT_LICENSE = """\
+MIT License
+
+Copyright (c) 2020 Jane Doe
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction.
+"""
+
+
+def test_extract_verbatim_from_fixture(monkeypatch):
+    async def fake_complete(self, system, user):
+        assert "Jane Doe" in user
+        return {
+            "copyright": "Copyright (c) 2020 Jane Doe",
+            "reasoning": "found notice line",
+        }
+
+    monkeypatch.setattr(Gpt41Client, "complete_json", fake_complete)
+    import copyright as copyright_mod
+
+    out = asyncio.run(copyright_mod.extract_copyright(MIT_LICENSE))
+    assert out["copyright"] == "Copyright (c) 2020 Jane Doe"
+    assert "notice" in out["reasoning"]
+
+
+def test_extract_placeholder_unknown(monkeypatch):
+    async def fake_complete(self, system, user):
+        return {
+            "copyright": "Copyright (c) <year> <copyright holders>",
+            "reasoning": "template line",
+        }
+
+    monkeypatch.setattr(Gpt41Client, "complete_json", fake_complete)
+    import copyright as copyright_mod
+
+    out = asyncio.run(copyright_mod.extract_copyright("MIT License\nCopyright (c) <year>"))
+    assert out["copyright"] == "UNKNOWN"
+    assert "placeholder" in out["reasoning"]
+
+
+def test_extract_empty_text_no_llm(monkeypatch):
+    called = {"n": 0}
+
+    async def fake_complete(self, system, user):
+        called["n"] += 1
+        return {"copyright": "x", "reasoning": "y"}
+
+    monkeypatch.setattr(Gpt41Client, "complete_json", fake_complete)
+    import copyright as copyright_mod
+
+    out = asyncio.run(copyright_mod.extract_copyright("   "))
+    assert out["copyright"] == "UNKNOWN"
+    assert called["n"] == 0
+
+
+def test_extract_unknown_after_parse_retries(monkeypatch):
+    async def fake_complete(self, system, user):
+        raise ParseFailure("garbage")
+
+    monkeypatch.setattr(Gpt41Client, "complete_json", fake_complete)
+    import copyright as copyright_mod
+
+    out = asyncio.run(copyright_mod.extract_copyright(MIT_LICENSE))
+    assert out["copyright"] == "UNKNOWN"
+    assert "retries exhausted" in out["reasoning"]

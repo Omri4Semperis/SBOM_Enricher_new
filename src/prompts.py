@@ -64,3 +64,37 @@ license_code_url rules:
 
 Return exactly the three fields in the JSON schema. No markdown fences."""
     return text, LICENSE_SCHEMA
+
+
+COPYRIGHT_SYSTEM = """\
+You are a software-license copyright extractor.
+
+You are given the text of a software license file. Extract all copyright
+notice lines from it verbatim (e.g. 'Copyright (c) 2023 Foo Inc.'). If there
+are multiple notices, join them with a newline.
+
+A REAL copyright notice names a concrete holder — a person, company, or
+project name. A year is common but optional: a notice that names a concrete
+holder is real even without a year. Do NOT return UNKNOWN merely because a
+year is missing.
+
+Many license files are generic unfilled templates whose copyright line is
+only a placeholder, for example 'Copyright (c) <year> <copyright holders>'
+or 'Copyright [yyyy] [name of copyright owner]'. Placeholder/template text
+is NOT a copyright notice — reply UNKNOWN instead. Prefer UNKNOWN over
+returning something wrong.
+
+Reply ONLY with a JSON object:
+{"copyright": "<extracted copyright text, or UNKNOWN>", "reasoning": "<one sentence>"}
+
+No markdown fences, no prose before or after."""
+
+
+def copyright_prompt(license_text: str) -> tuple[str, str]:
+    """Return (system_prompt, user_prompt) for copyright extraction."""
+    user = (
+        "License file contents:\n\n"
+        f"{license_text}\n\n"
+        "Extract the copyright notice(s). Reply with the JSON object only."
+    )
+    return COPYRIGHT_SYSTEM, user
