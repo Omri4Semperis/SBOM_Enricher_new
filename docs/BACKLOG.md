@@ -12,6 +12,7 @@
 | 3 | **Mid-run circuit-breaker** (abort / pause on systemic failure, e.g. mass 401s) | All-`UNKNOWN` + Ctrl-C proves too painful in practice | Omri — only if it actually bites |
 | 4 | **Restore copyright fallbacks** after file-only extraction fails: npm registry `author`, then Claude web copyright inference (same precedence as old code) | Too many copyright `UNKNOWN`s after file-only GPT-4.1 extraction | Omri — post first score-bearing runs |
 | 5 | **Promote GPT-4.1 to a `default.json` knob** | A second GPT deployment appears and needs swapping | Omri — trivial when needed |
+| 6 | **Capture LLM cost/tokens/raw on `ComponentResult`** (Claude `total_cost_usd`, GPT-4.1 usage, equality judge meta) so `summary.json` / extended CSV can leave the `unknown` cost marker | Ops shell (P8) ships with unknown costs + `saved_by_cache_usd=0` until callers expose usage | Omri — when cost reporting matters for a real run |
 
 ## Accepted residual risks (no mitigation in v2)
 

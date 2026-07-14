@@ -177,14 +177,39 @@ Phase-notes, report and stop.
    phase, Next action = "plan complete" and trigger PLAN.md's On completion
    (graduate decisions → ADR, stamp, archive).
 
-```txt
 ## Outcome
+
 Objective: preflight + progress + extended CSV + summary.json
-HEAD: {git rev-parse --short HEAD} | Branch: {git branch --show-current}
-Files changed: {git diff --name-only <baseline>..HEAD output}
-Commands run: {the Verify/gate commands and their observed results}
-Test status: {suite command + observed result}
-Assumptions: {numbered, or "none"}
-Open questions: {numbered, or "none"}
+HEAD: 72889a4 | Branch: master
+Files changed:
+- docs/BACKLOG.md
+- docs/plans/v2-enricher/PLAN.md
+- docs/plans/v2-enricher/P8_ops_preflight_progress_summary.md
+- src/main.py
+- src/preflight.py
+- src/pricing.py
+- src/progress.py
+- src/results_csv.py
+- src/summary.py
+- tests/conftest.py
+- tests/test_preflight.py
+- tests/test_pricing.py
+- tests/test_progress.py
+- tests/test_summary.py
+Commands run:
+- Entry: `pytest -q` → 78 passed; porcelain empty; baseline `2d0e27a`
+- T1: `pytest -q tests/test_preflight.py` → 4 passed
+- T2: `pytest -q tests/test_pricing.py tests/test_progress.py` → 7 passed
+- T3: `pytest -q tests/test_summary.py tests/test_pipeline.py` → 12 passed
+- Gate: `pytest -q` → 92 then 94 passed after review fixes; review FAIL→fixed
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 94 passed
+Assumptions:
+1. Four preflight attempts (initial + sleeps 2/4/6) satisfy "≥3 attempts (e.g. 2s,4s,6s)".
+2. Costs stay `unknown` until BACKLOG #6; Story parse covers timings/reasons only.
+3. `tests/conftest.py` autouse noop-preflight is an allowed deviation (suite must not hit live providers).
+Open questions: none
 Next action: plan complete — run PLAN.md On completion
-```
+Deviations:
+- Touch list omitted `tests/conftest.py`; edited for autouse preflight noop.
+- `.gitignore` `runs/` already present (P2 Incoming resolved, no edit).
+- Extended CSV raw/cost fields empty/`unknown` with Incoming on P3/P5/P6/P7 + BACKLOG #6.

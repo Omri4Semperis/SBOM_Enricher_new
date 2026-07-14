@@ -1,5 +1,7 @@
 # Plan: v2-enricher
 
+COMPLETED 2026-07-15 — historical record, not current truth
+
 **Live document.** Unlike the old design, this file is written to during
 execution. The executor of phase N may edit **only two files**: its own
 `P{N}_{...}.md` doc and this `PLAN.md`. It updates its row in the phase
@@ -60,7 +62,7 @@ decision, nothing more.
 | [P5: copyright_extraction](./P5_copyright_extraction.md)          | fixed GPT-4.1 client, file-only copyright (ADR 0003)                 | P4         | done | 45d6cfd | 2026-07-15 |
 | [P6: cache_all_or_nothing](./P6_cache_all_or_nothing.md)          | cross-run cache keyed on `component_name`, full-success-only (0001)  | P5         | done | 63fb57c | 2026-07-15 |
 | [P7: audit_equality_score](./P7_audit_equality_score.md)          | `is_eq_*` triplets, ladders, URL content-sameness (0002), score.csv  | P5         | done | e022742 | 2026-07-15 |
-| [P8: ops_preflight_progress_summary](./P8_ops_preflight_progress_summary.md) | preflight, progress+ETA, extended CSV, summary.json      | P6, P7     | in progress | 2d0e27a | 2026-07-15 |
+| [P8: ops_preflight_progress_summary](./P8_ops_preflight_progress_summary.md) | preflight, progress+ETA, extended CSV, summary.json      | P6, P7     | done | 2d0e27a | 2026-07-15 |
 
 Filenames use `P{N}_{snake_case_title}.md`. "Depends on" lists phase ids or "-".
 
@@ -244,16 +246,28 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   hit/miss, per-phase); `summary.json` (paths, run id/name, model, workers,
   counts, UTC start/end, per-phase cost + timing buckets). Pricing table is a
   source constant, not config.
-- **Notes:**
+- **Notes:** Done. Preflight: 4 attempts / backoffs (2,4,6)s, Claude CLI +
+  Azure token, `SystemExit` fail-fast. Progress: block bar + ETA + lock.
+  Pricing: `MODEL_PRICING` + `compute_cost` → `None`/`unknown` (never $0).
+  Extended CSV columns: cache_hit, raw placeholders, Story-parsed
+  license/copyright reasoning + phase timings, download_attempts, eq_*
+  reasons, grades, cost cells (`unknown` until BACKLOG #6). `summary.json`:
+  run meta + UTC times + cost buckets (inference / copyright / equality
+  license|url|copyright) + wall/per-phase timing avgs. `_FanoutWriter` ticks
+  progress without editing pipeline. `runs/` already gitignored. Review:
+  applied Exception-only retries, Story reason parse, Incoming on P3/P5/P6/P7,
+  fail-fast-before-workers test. No new ADR — ops already LOCKED in
+  DECISIONS; cost capture → BACKLOG #6.
 - **Incoming comments:**
   - From P2: add `runs/` to `.gitignore` (P2 exit demo created untracked
     `runs/`; `.gitignore` was outside P2 Touch list). See P2 Outcome.
+    **Resolved:** `runs/` already present in `.gitignore`.
   - From P7: extended CSV should surface per-component `is_eq_*` reasons
     (`eq_license_name_reason`, `eq_license_code_url_reason`,
     `eq_copyright_reason` — e.g. `gt_url_download_failed` / `judge:…`) and
     `grades` (`h`/`m`/`u` dict keyed by GT item). `score.csv` already written
     by `scoring.write_score_csv`; do not re-grade from scratch unless needed.
-
+    **Resolved:** columns present on ExtendedWriter.
 ## On completion
 
 Only after every phase shows `done` in the table above, in this order:
