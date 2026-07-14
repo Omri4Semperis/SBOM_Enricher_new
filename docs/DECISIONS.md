@@ -10,7 +10,8 @@
 > terminology; this log references terms, it doesn't define them.
 > - `docs/BACKLOG.md` — deferred levers + accepted residual risks (parking lot).
 > - `docs/adr/` — Architecture Decision Records for durable, hard-to-reverse
-> decisions. Offered at session close, not written mid-grill.
+> decisions. Written at grilling close: `0001` cache all-or-nothing, `0002`
+> URL equality by content, `0003` copyright file-only.
 
 ## Subject
 
