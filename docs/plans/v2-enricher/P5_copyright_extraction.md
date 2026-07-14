@@ -156,7 +156,7 @@ Phase-notes, report and stop.
 ## Outcome
 
 Objective: file-only copyright extraction via fixed GPT-4.1 client (ADR 0003)
-HEAD: e9d733b | Branch: master
+HEAD: 28c5c12 | Branch: master
 Files changed:
 - docs/plans/v2-enricher/PLAN.md
 - docs/plans/v2-enricher/P5_copyright_extraction.md
