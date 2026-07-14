@@ -53,6 +53,7 @@ audit mode off (unchanged from P2's non-audit output).
 
   Judge always commits (no `UNKNOWN`). A failed/missing GT download resolves to
   FALSE upstream before the judge is called.
+
 - Locked column order (DECISIONS "Main results.csv column order"): per-item
   triplet ground-truth → inferred → is_eq, sitting adjacent:
 
@@ -66,6 +67,7 @@ copyright,         inferred_copyright,         is_eq_copyright
   Item with no GT column collapses to just its `inferred_*` column. Extra
   passthrough input columns preserved at the end. This EXTENDS P2's writer —
   keep non-audit output identical when no GT is present.
+
 - Locked scoring (DECISIONS "Scoring"): each graded item is `h` (hit / matches),
   `m` (mismatch / wrong value), or `u` (unknown / didn't know, didn't guess
   wrong — inferred is `UNKNOWN`). `score.csv` is a tally with a `Count` column,

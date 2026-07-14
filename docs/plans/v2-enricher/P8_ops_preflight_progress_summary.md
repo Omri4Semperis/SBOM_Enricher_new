@@ -176,6 +176,7 @@ Phase-notes, report and stop.
 4. Record full **Outcome** here (same shape as P1's). Since this is the last
    phase, Next action = "plan complete" and trigger PLAN.md's On completion
    (graduate decisions → ADR, stamp, archive).
+
 ```txt
 ## Outcome
 Objective: preflight + progress + extended CSV + summary.json
