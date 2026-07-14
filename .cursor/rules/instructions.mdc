@@ -1,0 +1,10 @@
+---
+description: Permanent instructions.
+alwaysApply: true
+---
+
+# Project goal
+
+This project enriches an input CSV, contianing component name & purl, with license, license url and copyright statement- all fetched online.
+
+Important: Look at `~/docs/` dir for special and important documents.
