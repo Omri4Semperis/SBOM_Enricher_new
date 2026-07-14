@@ -19,9 +19,17 @@ frozen `Config` object other phases build on. Nothing runs the pipeline yet.
 Run each; all must hold before any other work. If any fails, follow
 **If blocked** — do not improvise around it.
 
-- [ ] Read this phase's block in `PLAN.md`, including any **Incoming comments**
-- [ ] `git status --porcelain` → empty (clean tree)
-- [ ] `.\.venv\Scripts\python.exe -c "import openai, azure.identity; print('ok')"` → prints `ok`
+- [x] Read this phase's block in `PLAN.md`, including any **Incoming comments**
+- [x] `git status --porcelain` → empty (clean tree)
+- [x] `.\.venv\Scripts\python.exe -c "import openai, azure.identity; print('ok')"` → prints `ok`
+
+## Deviations
+
+1. **T1 Verify exit code:** with 0 tests collected, `pytest -q` exits **5** (not 0).
+   Doc said "exit 0 (0 tests collected is fine)". Treated exit 5 as the
+   expected no-tests success for T1 only; T3/gate require real tests → exit 0.
+2. **pytest install:** `pip install pytest` into `.venv` only (pytest 9.1.1);
+   not added to `requirements.txt` (repo has none for dev deps), as directed.
 
 ## Context capsule
 

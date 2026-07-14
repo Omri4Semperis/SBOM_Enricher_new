@@ -53,7 +53,7 @@ decision, nothing more.
 
 | Phase                                                             | Purpose                                                              | Depends on | Status  | Baseline | Updated |
 | -                                                                 | -                                                                    | -          | -       | -        | -       |
-| [P1: scaffold_and_config](./P1_scaffold_and_config.md)            | pytest in venv, `src` package, load + validate `default.json`        | -          | pending |          |         |
+| [P1: scaffold_and_config](./P1_scaffold_and_config.md)            | pytest in venv, `src` package, load + validate `default.json`        | -          | in progress | c221171 | 2026-07-14 |
 | [P2: input_run_dir_stub](./P2_input_run_dir_stub.md)              | CSV validate + parse, run dir + input copies, stub worker pipeline   | P1         | pending |          |         |
 | [P3: license_inference](./P3_license_inference.md)                | Claude client + license JSON contract + retry, wired into pipeline   | P2         | pending |          |         |
 | [P4: license_download](./P4_license_download.md)                  | viewer→raw rewrite, HTML reject, npm/unpkg fallback, save files      | P3         | pending |          |         |
@@ -83,7 +83,8 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   message on: unknown `model` (allow-list), `workers` outside 1–30, missing
   required paths. Model allow-list constant `MODEL_CHOICES` lives here. Nullable
   `cache_read`/`cache_write` resolve to `None` when null/empty.
-- **Notes:**
+- **Notes:** T1: pytest 9.1.1 installed in `.venv` only (not requirements.txt).
+  Verify with 0 tests → pytest exit 5 (doc said 0); accepted for T1 only.
 - **Incoming comments:**
 
 ### P2: input_run_dir_stub
