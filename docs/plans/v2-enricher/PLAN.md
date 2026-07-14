@@ -177,6 +177,17 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   for the judge (uniform `{verdict, reasoning}` schema).
 - **Notes:**
 - **Incoming comments:**
+  - From P3: audit inputs already flow through today. `read_components`
+    (`src/input_csv.py`) puts every non-`component_name`/`purl` column into
+    `extras`, and `ResultsWriter` (`src/results_csv.py`, `BASE_COLUMNS` +
+    extras) appends them at the END. So `default.json`'s `input/tiny.csv` (has
+    GT `license_name`, `license_code_url`, `copyright`) currently writes
+    `...,inferred_copyright,license_name,license_code_url,copyright` — GT cols
+    dumped after the inferred block, no `is_eq_*`. P7 must recognize the GT set
+    and rebuild the LOCKED interleaved triplet order (GT → inferred → is_eq per
+    item; DECISIONS "Main results.csv column order"), not rely on the
+    extras-at-end passthrough. Verified against run
+    `runs/20260714_232633_ClaudeOpu-4-8_2`.
 
 ### P8: ops_preflight_progress_summary
 
