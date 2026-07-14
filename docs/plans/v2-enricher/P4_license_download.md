@@ -149,3 +149,25 @@ Phase-notes, report and stop.
    shape (saved path field is what P5/P6 consume), where attempts are stored
    for P8's extended CSV.
 4. Record full **Outcome** here (same shape as P1's).
+
+## Outcome
+
+Objective: license-file download with viewer→raw, HTML/template reject, npm/unpkg fallback
+HEAD: 1ecced6 | Branch: master
+Files changed:
+- docs/plans/v2-enricher/PLAN.md
+- docs/plans/v2-enricher/P4_license_download.md
+- src/download.py
+- src/pipeline.py
+- tests/test_download.py
+- tests/test_pipeline.py
+Commands run:
+- Entry: `pytest -q` → 26 passed; porcelain empty; baseline `f7b3f36`
+- T1: `pytest -q tests/test_download.py -k "rewrite or html or candidates"` → 9 passed
+- T2: `pytest -q tests/test_download.py` → 16 passed
+- T3: `pytest -q tests/test_pipeline.py` → 3 passed
+- Gate: `pytest -q` → 43 passed; review PASS; post-shrink `pytest -q` → 43 passed
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 43 passed
+Assumptions: extensionless LICENSE URLs save as `{slug}.txt`; download failure keeps Claude's candidate URL on `inferred_license_code_url`
+Open questions: none
+Next action: P5 (copyright_extraction)

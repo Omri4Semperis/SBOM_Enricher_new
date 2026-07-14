@@ -56,7 +56,7 @@ decision, nothing more.
 | [P1: scaffold_and_config](./P1_scaffold_and_config.md)            | pytest in venv, `src` package, load + validate `default.json`        | -          | done | c221171 | 2026-07-14 |
 | [P2: input_run_dir_stub](./P2_input_run_dir_stub.md)              | CSV validate + parse, run dir + input copies, stub worker pipeline   | P1         | done | f65cd87 | 2026-07-14 |
 | [P3: license_inference](./P3_license_inference.md)                | Claude client + license JSON contract + retry, wired into pipeline   | P2         | done | 234411c | 2026-07-14 |
-| [P4: license_download](./P4_license_download.md)                  | viewer→raw rewrite, HTML reject, npm/unpkg fallback, save files      | P3         | in progress | f7b3f36 | 2026-07-14 |
+| [P4: license_download](./P4_license_download.md)                  | viewer→raw rewrite, HTML reject, npm/unpkg fallback, save files      | P3         | done | f7b3f36 | 2026-07-14 |
 | [P5: copyright_extraction](./P5_copyright_extraction.md)          | fixed GPT-4.1 client, file-only copyright (ADR 0003)                 | P4         | pending |          |         |
 | [P6: cache_all_or_nothing](./P6_cache_all_or_nothing.md)          | cross-run cache keyed on `component_name`, full-success-only (0001)  | P5         | pending |          |         |
 | [P7: audit_equality_score](./P7_audit_equality_score.md)          | `is_eq_*` triplets, ladders, URL content-sameness (0002), score.csv  | P5         | pending |          |         |
@@ -144,7 +144,14 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   `licenses/{slug}.<ext>` and a copy in `per_component/{slug}/`. Sets
   `inferred_license_code_url` to the URL that actually worked. The saved file
   path is what P5 (copyright) and P6 (cache) consume.
-- **Notes:**
+- **Notes:** Done. `async fetch_license_file(claude_url, purl, dest_dir, slug)
+  -> DownloadResult` with fields `resolved_url`, `saved_path: Path | None`,
+  `error`, `original_url`, `attempts: list[str]`, `ok` property.
+  `ComponentResult` gained `license_file_path` (P5/P6 consume),
+  `download_attempts`, `original_license_url` (P8 extended CSV). Failure leaves
+  Claude's URL on `inferred_license_code_url` and `license_file_path=None`.
+  Review PASS (shrinks applied; `_HttpFail` adapter + filename list recorded
+  as ordered complexity).
 - **Incoming comments:**
 
 ### P5: copyright_extraction
