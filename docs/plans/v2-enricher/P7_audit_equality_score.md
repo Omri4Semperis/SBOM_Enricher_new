@@ -184,7 +184,7 @@ Phase-notes, report and stop.
 ## Outcome
 
 Objective: audit-mode `is_eq_*` ladders + score.csv (ADR 0002)
-HEAD: 9007591 | Branch: master
+HEAD: b77477b | Branch: master
 Files changed:
 - docs/plans/v2-enricher/PLAN.md
 - docs/plans/v2-enricher/P7_audit_equality_score.md
