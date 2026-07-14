@@ -135,7 +135,12 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   gained `model` vs P2. Review PASS (lean). Tests use `asyncio.run` (no
   pytest-asyncio).
 - **Incoming comments:**
-
+  - From P8: `infer_license` does not return CLI `total_cost_usd` / tokens /
+    raw response on the result object — only Story `reasoning`+`attempts`+
+    `timing_s`. P8 marks license-inference cost `unknown` and leaves
+    `inferencer_raw_response` empty; `saved_by_cache_usd` stays 0. To fill
+    real costs, surface `total_cost_usd` (prefer CLI) onto `ComponentResult`
+    (or a P8-readable side channel) without changing enrichment semantics.
 ### P4: license_download
 
 - **For other phases:** exposes `src/download.py` `fetch_license_file(url, purl,
@@ -170,7 +175,11 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   unused `TransientFailure`. Deviation: unrelated commit `4f44847` lint-fixed
   other phase `P*` docs mid-phase (outside P5 Touch; not reverted).
 - **Incoming comments:**
-
+  - From P8: copyright extraction does not return GPT-4.1 token usage / raw
+    response / cost on `ComponentResult` — only Story `reasoning`+`timing_s`.
+    P8 marks copyright cost `unknown` and leaves `copyright_raw_response`
+    empty. To fill real costs, return usage from `Gpt41Client.complete_json`
+    (or attach cost on the result) for P8 to aggregate.
 ### P6: cache_all_or_nothing
 
 - **For other phases:** exposes `src/cache.py` — read keyed on
@@ -184,12 +193,14 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   `restore_license_file(record, run_dir, slug) -> Path`. Cached license
   filenames are `quote(component_name, safe="@.-+")` + ext (avoids slug
   collisions across inputs). `ComponentResult.from_cache: bool` — P8 reads
-  this for `saved_by_cache_usd`. Hit at start of `process_component`; write
+  this for `saved_by_cache_usd`.   Hit at start of `process_component`; write
   at end on full success. Review PASS; applied unique-filename fix + dropped
   unused `threading.Lock` / public `is_full_success`. Deviation: T2+T3 wired
   in one commit.
 - **Incoming comments:**
-
+  - From P8: `from_cache` is set, but no per-hit "would-have-cost" is stored,
+    so `saved_by_cache_usd` in summary is always `0.0` until inference/
+    copyright cost capture exists (see P3/P5 Incoming).
 ### P7: audit_equality_score
 
 - **For other phases:** exposes `src/equality.py` — per-item `is_eq_*` verdicts
@@ -221,7 +232,10 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
     item; DECISIONS "Main results.csv column order"), not rely on the
     extras-at-end passthrough. Verified against run
     `runs/20260714_232633_ClaudeOpu-4-8_2`.
-
+  - From P8: equality judge calls don't expose token usage / cost / elapsed on
+    `ComponentResult` (reasons + grades only). P8 marks judge costs `unknown`
+    when reason starts with `judge:`; `avg_equality_seconds` stays null. To
+    fill, attach per-judge CallMeta-like fields during `apply_equality`.
 ### P8: ops_preflight_progress_summary
 
 - **For other phases:** terminal phase. Startup dual-provider preflight

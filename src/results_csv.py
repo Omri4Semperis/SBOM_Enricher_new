@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pricing import UNKNOWN_COST
-from summary import parse_story_timings
+from summary import parse_story_reasons, parse_story_timings
 
 if TYPE_CHECKING:
     from pipeline import ComponentResult
@@ -69,6 +69,33 @@ def build_fieldnames(
     return names
 
 
+def _base_row(
+    result: ComponentResult,
+    gt_columns: list[str],
+    passthrough: list[str],
+) -> dict[str, str]:
+    extras = result.component.extras
+    row: dict[str, str] = {
+        "component_name": result.component.component_name,
+        "purl": result.component.purl,
+        "inferred_license_name": result.inferred_license_name,
+        "inferred_license_code_url": result.inferred_license_code_url,
+        "inferred_copyright": result.inferred_copyright,
+    }
+    if "license_name" in gt_columns:
+        row["license_name"] = extras.get("license_name", "")
+        row["is_eq_license_name"] = result.is_eq_license_name
+    if "license_code_url" in gt_columns:
+        row["license_code_url"] = extras.get("license_code_url", "")
+        row["is_eq_license_code_url"] = result.is_eq_license_code_url
+    if "copyright" in gt_columns:
+        row["copyright"] = extras.get("copyright", "")
+        row["is_eq_copyright"] = result.is_eq_copyright
+    for col in passthrough:
+        row[col] = extras.get(col, "")
+    return row
+
+
 class ResultsWriter:
     def __init__(self, path: Path, extra_columns: list[str]) -> None:
         self._path = path
@@ -81,26 +108,7 @@ class ResultsWriter:
         self._file.flush()
 
     def write_row(self, result: ComponentResult) -> None:
-        extras = result.component.extras
-        row: dict[str, str] = {
-            "component_name": result.component.component_name,
-            "purl": result.component.purl,
-            "inferred_license_name": result.inferred_license_name,
-            "inferred_license_code_url": result.inferred_license_code_url,
-            "inferred_copyright": result.inferred_copyright,
-        }
-        if "license_name" in self._gt_columns:
-            row["license_name"] = extras.get("license_name", "")
-            row["is_eq_license_name"] = result.is_eq_license_name
-        if "license_code_url" in self._gt_columns:
-            row["license_code_url"] = extras.get("license_code_url", "")
-            row["is_eq_license_code_url"] = result.is_eq_license_code_url
-        if "copyright" in self._gt_columns:
-            row["copyright"] = extras.get("copyright", "")
-            row["is_eq_copyright"] = result.is_eq_copyright
-        for col in self._passthrough:
-            row[col] = extras.get(col, "")
-        self._writer.writerow(row)
+        self._writer.writerow(_base_row(result, self._gt_columns, self._passthrough))
         self._file.flush()
 
     def close(self) -> None:
@@ -134,26 +142,7 @@ class ExtendedWriter:
         self._file.flush()
 
     def write_row(self, result: ComponentResult) -> None:
-        extras = result.component.extras
-        row: dict[str, str] = {
-            "component_name": result.component.component_name,
-            "purl": result.component.purl,
-            "inferred_license_name": result.inferred_license_name,
-            "inferred_license_code_url": result.inferred_license_code_url,
-            "inferred_copyright": result.inferred_copyright,
-        }
-        if "license_name" in self._gt_columns:
-            row["license_name"] = extras.get("license_name", "")
-            row["is_eq_license_name"] = result.is_eq_license_name
-        if "license_code_url" in self._gt_columns:
-            row["license_code_url"] = extras.get("license_code_url", "")
-            row["is_eq_license_code_url"] = result.is_eq_license_code_url
-        if "copyright" in self._gt_columns:
-            row["copyright"] = extras.get("copyright", "")
-            row["is_eq_copyright"] = result.is_eq_copyright
-        for col in self._passthrough:
-            row[col] = extras.get(col, "")
-
+        row = _base_row(result, self._gt_columns, self._passthrough)
         story_path = (
             self._run_dir / "per_component" / result.component.slug / "story.txt"
         )
@@ -163,16 +152,18 @@ class ExtendedWriter:
             else ""
         )
         timings = parse_story_timings(story)
+        reasons = parse_story_reasons(story)
         infer_s = timings.get("license")
         dl_s = timings.get("download")
         cr_s = timings.get("copyright")
-        total_s = sum(v for v in (infer_s, dl_s, cr_s) if v is not None)
+        parts = [v for v in (infer_s, dl_s, cr_s) if v is not None]
+        total_s = sum(parts) if parts else None
 
         row.update(
             {
                 "cache_hit": "true" if result.from_cache else "false",
                 "inferencer_raw_response": "",
-                "license_reasoning": "",
+                "license_reasoning": reasons.get("license", ""),
                 "inferencer_elapsed_s": f"{infer_s:.3f}" if infer_s is not None else "",
                 "inferencer_cost_usd": UNKNOWN_COST if not result.from_cache else "",
                 "download_attempts": " | ".join(result.download_attempts),
@@ -181,7 +172,7 @@ class ExtendedWriter:
                 ),
                 "license_file_original_url": result.original_license_url,
                 "copyright_raw_response": "",
-                "copyright_reasoning": "",
+                "copyright_reasoning": reasons.get("copyright", ""),
                 "copyright_elapsed_s": f"{cr_s:.3f}" if cr_s is not None else "",
                 "copyright_cost_usd": (
                     UNKNOWN_COST
@@ -209,7 +200,7 @@ class ExtendedWriter:
                 "grades": json.dumps(result.grades, sort_keys=True)
                 if result.grades
                 else "",
-                "total_elapsed_s": f"{total_s:.3f}" if total_s else "",
+                "total_elapsed_s": f"{total_s:.3f}" if total_s is not None else "",
                 "total_cost_usd": UNKNOWN_COST if not result.from_cache else "",
             }
         )

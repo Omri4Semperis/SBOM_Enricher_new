@@ -18,6 +18,12 @@ _TIMING_RE = re.compile(
     r"^(license|download|copyright):.*\btiming_s=([0-9.]+)",
     re.MULTILINE,
 )
+_LICENSE_REASON_RE = re.compile(
+    r"^license:\s+(.*?)\s+attempts=", re.MULTILINE
+)
+_COPYRIGHT_REASON_RE = re.compile(
+    r"^copyright:\s+(.*?)\s+timing_s=", re.MULTILINE
+)
 
 
 def parse_story_timings(story_text: str) -> dict[str, float]:
@@ -25,6 +31,18 @@ def parse_story_timings(story_text: str) -> dict[str, float]:
     out: dict[str, float] = {}
     for kind, val in _TIMING_RE.findall(story_text):
         out[kind] = float(val)
+    return out
+
+
+def parse_story_reasons(story_text: str) -> dict[str, str]:
+    """Extract license/copyright reasoning text from Story (P8-owned)."""
+    out: dict[str, str] = {}
+    m = _LICENSE_REASON_RE.search(story_text)
+    if m:
+        out["license"] = m.group(1).strip()
+    m = _COPYRIGHT_REASON_RE.search(story_text)
+    if m:
+        out["copyright"] = m.group(1).strip()
     return out
 
 
@@ -69,7 +87,8 @@ def build_summary(
     n = len(results)
     cache_hits = sum(1 for r in results if r.from_cache)
 
-    # Costs: earlier phases don't capture tokens/CLI total_cost_usd yet → unknown.
+    # Costs: P3/P5/P7 don't capture tokens/CLI total_cost_usd on results yet
+    # (Incoming comments left on those PLAN blocks) → unknown / saved=0.
     infer_unknown = n - cache_hits
     copyright_unknown = sum(
         1

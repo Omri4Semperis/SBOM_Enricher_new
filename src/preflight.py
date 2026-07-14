@@ -49,7 +49,7 @@ def _retry(probe, label: str) -> None:
         try:
             probe()
             return
-        except BaseException as e:  # noqa: BLE001 — any probe failure retries
+        except Exception as e:  # noqa: BLE001 — probe failures retry; not Ctrl-C
             last = e
             if i < ATTEMPTS - 1:
                 time.sleep(BACKOFFS[i])

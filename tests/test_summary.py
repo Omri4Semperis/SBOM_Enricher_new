@@ -2,6 +2,8 @@ import csv
 import json
 from pathlib import Path
 
+import pytest
+
 import config
 import main
 import pipeline
@@ -59,6 +61,43 @@ def test_parse_story_timings():
     }
 
 
+def test_parse_story_reasons():
+    from summary import parse_story_reasons
+
+    text = (
+        "license: mocked sources ok attempts=1 timing_s=1.250\n"
+        "copyright: verbatim notice timing_s=0.100\n"
+    )
+    assert parse_story_reasons(text) == {
+        "license": "mocked sources ok",
+        "copyright": "verbatim notice",
+    }
+
+
+def test_main_preflight_fail_skips_workers(monkeypatch):
+    """Fail-fast: SystemExit from preflight before any worker starts."""
+
+    def boom(_config):
+        raise SystemExit("Preflight failed (claude) after 4 attempts: down")
+
+    monkeypatch.setattr("main.preflight", boom)
+    monkeypatch.setattr(
+        "main.run_workers",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("workers must not run")),
+    )
+    cfg = config.Config(
+        input_file_path=FIXTURE,
+        output_base_path=Path("unused"),
+        run_name=None,
+        model="claude-haiku-4-5",
+        workers=1,
+        cache_read=None,
+        cache_write=None,
+    )
+    with pytest.raises(SystemExit, match="Preflight failed"):
+        main.run(cfg)
+
+
 def test_fixture_run_extended_csv_and_summary(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
@@ -88,6 +127,8 @@ def test_fixture_run_extended_csv_and_summary(tmp_path, monkeypatch):
     assert rows[0]["download_attempts"]
     assert "inferencer_elapsed_s" in rows[0]
     assert rows[0]["inferencer_elapsed_s"]  # from Story timing_s=
+    assert rows[0]["license_reasoning"] == "mocked sources ok"
+    assert rows[0]["copyright_reasoning"] == "verbatim notice"
 
     summary_path = out / "summary.json"
     assert summary_path.is_file()
