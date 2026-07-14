@@ -37,6 +37,7 @@ A handoff is cheap; a confused session is not. When unsure, write it.
 no repo → current directory). Create `docs/` if missing.
 
 If `docs/HANDOFF.md` already exists, check it for a `Consumed:` line:
+
 - No `Consumed:` line → a live handoff nobody has picked up. Ask the user
   before replacing it; on yes, move it to `docs/HANDOFF-{YYYY-MM-DD-HHMM}.md`
   first, then write the new one. Never silently overwrite a live handoff.
