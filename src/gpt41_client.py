@@ -22,10 +22,6 @@ class ParseFailure(Exception):
     pass
 
 
-class TransientFailure(Exception):
-    pass
-
-
 class HardFailure(Exception):
     pass
 
@@ -35,8 +31,6 @@ def _classify(exc: BaseException) -> str:
         return "hard"
     if isinstance(exc, ParseFailure):
         return "parse"
-    if isinstance(exc, TransientFailure):
-        return "transient"
     if isinstance(exc, (APIConnectionError, APITimeoutError, RateLimitError)):
         return "transient"
     return "hard"

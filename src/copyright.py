@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from gpt41_client import Gpt41Client, HardFailure, ParseFailure, TransientFailure
+from gpt41_client import Gpt41Client
 from prompts import copyright_prompt
 
 REQUIRED_KEYS = ("copyright", "reasoning")
@@ -18,7 +18,7 @@ _PLACEHOLDER_TOKEN_RE = re.compile(
 )
 
 
-def is_placeholder_copyright(text: str) -> bool:
+def _is_placeholder_copyright(text: str) -> bool:
     return bool(_PLACEHOLDER_TOKEN_RE.search(text))
 
 
@@ -37,10 +37,8 @@ async def extract_copyright(license_text: str) -> dict:
     system, user = copyright_prompt(license_text)
     try:
         data = await Gpt41Client().complete_json(system, user)
-    except (HardFailure, TransientFailure, ParseFailure) as e:
+    except Exception as e:  # noqa: BLE001 — fail closed per component
         return _unknown(f"retries exhausted: {e}")
-    except Exception as e:  # noqa: BLE001 — fail closed
-        return _unknown(f"error: {e}")
 
     if any(k not in data for k in REQUIRED_KEYS):
         return _unknown(f"contract keys missing: {sorted(data)}")
@@ -49,6 +47,6 @@ async def extract_copyright(license_text: str) -> dict:
     reasoning = str(data["reasoning"]).strip() or "no reasoning"
     if not copyright_text or copyright_text.upper() == "UNKNOWN":
         return _unknown(reasoning if copyright_text.upper() == "UNKNOWN" else "empty copyright")
-    if is_placeholder_copyright(copyright_text):
+    if _is_placeholder_copyright(copyright_text):
         return _unknown("placeholder template copyright")
     return {"copyright": copyright_text, "reasoning": reasoning}
