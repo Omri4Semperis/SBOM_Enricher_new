@@ -153,7 +153,7 @@ Phase-notes, report and stop.
 ## Outcome
 
 Objective: license-file download with viewer→raw, HTML/template reject, npm/unpkg fallback
-HEAD: 1ecced6 | Branch: master
+HEAD: 99cf852 | Branch: master
 Files changed:
 - docs/plans/v2-enricher/PLAN.md
 - docs/plans/v2-enricher/P4_license_download.md
