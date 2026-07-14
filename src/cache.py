@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import csv
 import shutil
-import threading
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote
 
 INDEX_NAME = "cache.csv"
 LICENSES_SUBDIR = "licenses"
@@ -17,7 +17,6 @@ _COLUMNS = (
     "inferred_copyright",
     "license_filename",
 )
-_WRITE_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -33,16 +32,9 @@ def _known(value: str) -> bool:
     return bool(value) and value != "UNKNOWN"
 
 
-def is_full_success(result: object) -> bool:
-    """True when name/url/copyright are known and a license file was saved."""
-    path = getattr(result, "license_file_path", None)
-    return (
-        _known(getattr(result, "inferred_license_name", ""))
-        and _known(getattr(result, "inferred_license_code_url", ""))
-        and _known(getattr(result, "inferred_copyright", ""))
-        and path is not None
-        and Path(path).is_file()
-    )
+def _cache_filename(component_name: str, src: Path) -> str:
+    """Unique-per-key filename (slug basename can collide across inputs)."""
+    return quote(component_name, safe="@.-+") + (src.suffix or ".txt")
 
 
 def _load_index(index_path: Path) -> dict[str, dict[str, str]]:
@@ -97,25 +89,32 @@ def read_cache(cache_read: Path | None, component_name: str) -> CachedRecord | N
 
 def write_cache(cache_write: Path | None, component_name: str, result: object) -> bool:
     """Write a full-success row + license file. Returns True if written."""
-    if cache_write is None or not is_full_success(result):
+    if cache_write is None:
         return False
-    src = Path(result.license_file_path)  # type: ignore[attr-defined]
-    filename = src.name
-    with _WRITE_LOCK:
-        licenses = cache_write / LICENSES_SUBDIR
-        licenses.mkdir(parents=True, exist_ok=True)
-        dest = licenses / filename
-        shutil.copy2(src, dest)
-        index_path = cache_write / INDEX_NAME
-        rows = _load_index(index_path)
-        rows[component_name] = {
-            "component_name": component_name,
-            "inferred_license_name": result.inferred_license_name,  # type: ignore[attr-defined]
-            "inferred_license_code_url": result.inferred_license_code_url,  # type: ignore[attr-defined]
-            "inferred_copyright": result.inferred_copyright,  # type: ignore[attr-defined]
-            "license_filename": filename,
-        }
-        _write_index(index_path, rows)
+    path = getattr(result, "license_file_path", None)
+    if not (
+        _known(getattr(result, "inferred_license_name", ""))
+        and _known(getattr(result, "inferred_license_code_url", ""))
+        and _known(getattr(result, "inferred_copyright", ""))
+        and path is not None
+        and Path(path).is_file()
+    ):
+        return False
+    src = Path(path)
+    filename = _cache_filename(component_name, src)
+    licenses = cache_write / LICENSES_SUBDIR
+    licenses.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, licenses / filename)
+    index_path = cache_write / INDEX_NAME
+    rows = _load_index(index_path)
+    rows[component_name] = {
+        "component_name": component_name,
+        "inferred_license_name": result.inferred_license_name,  # type: ignore[attr-defined]
+        "inferred_license_code_url": result.inferred_license_code_url,  # type: ignore[attr-defined]
+        "inferred_copyright": result.inferred_copyright,  # type: ignore[attr-defined]
+        "license_filename": filename,
+    }
+    _write_index(index_path, rows)
     return True
 
 
