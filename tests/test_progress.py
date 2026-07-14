@@ -23,6 +23,15 @@ def test_render_line_includes_bar_and_eta():
     assert "ETA" in line
 
 
+def test_render_line_pads_eta_against_stale_chars():
+    # Trailing pad after ETA keeps line length stable as ETA digits shrink.
+    short_eta = render_line(9, 10, 180.0)  # ~ETA 20s
+    long_eta = render_line(9, 10, 900.0)  # ~ETA 100s
+    assert len(short_eta) == len(long_eta)
+    assert format_eta(9, 10, 180.0) in short_eta
+    assert short_eta.endswith(" ")
+
+
 def test_progress_tick(monkeypatch):
     lines = []
     monkeypatch.setattr(

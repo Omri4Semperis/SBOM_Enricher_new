@@ -25,7 +25,9 @@ def format_eta(done: int, total: int, elapsed_s: float) -> str:
 
 
 def render_line(done: int, total: int, elapsed_s: float) -> str:
-    return f"  {progress_bar(done, total)}  {format_eta(done, total, elapsed_s)}"
+    # Pad ETA so \r redraws don't leave leftover chars (e.g. "21sss").
+    eta = f"{format_eta(done, total, elapsed_s):<16}"
+    return f"  {progress_bar(done, total)}  {eta}"
 
 
 class Progress:
@@ -48,4 +50,4 @@ class Progress:
             print(file=sys.stderr)
 
     def start(self) -> None:
-        print(render_line(0, self.total, 0.0), end="", file=sys.stderr, flush=True)
+        print(f"\r{render_line(0, self.total, 0.0)}", end="", file=sys.stderr, flush=True)
