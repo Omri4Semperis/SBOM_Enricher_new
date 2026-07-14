@@ -1,11 +1,13 @@
-"""Per-component stub pipeline and bounded asyncio worker pool."""
+"""Per-component pipeline and bounded asyncio worker pool."""
 
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from claude_client import infer_license
 from config import Config
 from input_csv import Component
 from results_csv import ResultsWriter
@@ -31,9 +33,25 @@ def append_story(run_dir: Path, slug: str, line: str) -> None:
         f.write(line.rstrip() + "\n")
 
 
-async def process_component(comp: Component, run_dir: Path) -> ComponentResult:
+async def process_component(
+    comp: Component, run_dir: Path, model: str
+) -> ComponentResult:
     result = ComponentResult(component=comp)
-    append_story(run_dir, comp.slug, "stub: no inference run")
+    if not (comp.purl or "").strip():
+        append_story(run_dir, comp.slug, "no purl")
+
+    t0 = time.perf_counter()
+    data = await infer_license(comp.purl, comp.lib_name, comp.version, model)
+    elapsed = time.perf_counter() - t0
+
+    result.inferred_license_name = data["license_name"]
+    result.inferred_license_code_url = data["license_code_url"]
+    append_story(
+        run_dir,
+        comp.slug,
+        f"license: {data['reasoning']} attempts={data.get('attempts', '?')} "
+        f"timing_s={elapsed:.3f}",
+    )
     return result
 
 
@@ -48,7 +66,7 @@ async def run_workers(
 
     async def one(comp: Component) -> ComponentResult:
         async with sem:
-            return await process_component(comp, run_dir)
+            return await process_component(comp, run_dir, config.model)
 
     tasks = [asyncio.create_task(one(c)) for c in components]
     for finished in asyncio.as_completed(tasks):

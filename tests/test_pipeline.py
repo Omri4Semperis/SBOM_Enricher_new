@@ -1,3 +1,4 @@
+import asyncio
 import csv
 from pathlib import Path
 
@@ -9,7 +10,18 @@ import run_dir
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "mini.csv"
 
 
-def test_stub_run_writes_unknown_results(tmp_path):
+async def _fake_infer(purl, lib_name, version, model):
+    return {
+        "license_name": "MIT",
+        "license_code_url": "https://example.com/LICENSE",
+        "reasoning": "mocked sources ok",
+        "attempts": 1,
+    }
+
+
+def test_mocked_license_lands_in_results_csv(tmp_path, monkeypatch):
+    monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
+
     cfg = config.Config(
         input_file_path=FIXTURE,
         output_base_path=tmp_path / "runs",
@@ -34,11 +46,38 @@ def test_stub_run_writes_unknown_results(tmp_path):
     ]
     assert "notes" in rows[0]
     for row in rows:
-        assert row["inferred_license_name"] == "UNKNOWN"
-        assert row["inferred_license_code_url"] == "UNKNOWN"
+        assert row["inferred_license_name"] == "MIT"
+        assert row["inferred_license_code_url"] == "https://example.com/LICENSE"
         assert row["inferred_copyright"] == "UNKNOWN"
-        slug = row["component_name"]  # fixture names need no slug rewrite
+        slug = row["component_name"]
         story = (out / "per_component" / slug / pipeline.STORY_FILENAME).read_text(
             encoding="utf-8"
         )
-        assert "stub: no inference run" in story
+        assert "mocked sources ok" in story
+        assert "attempts=1" in story
+        assert "timing_s=" in story
+
+
+def test_empty_purl_noted_in_story(tmp_path, monkeypatch):
+    monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
+
+    from input_csv import Component
+
+    comp = Component(
+        component_name="solo@1.0",
+        purl="",
+        lib_name="solo",
+        version="1.0",
+        slug="solo@1.0",
+        extras={},
+    )
+    run = tmp_path / "run"
+    (run / "per_component" / comp.slug).mkdir(parents=True)
+
+    result = asyncio.run(pipeline.process_component(comp, run, "claude-haiku-4-5"))
+    assert result.inferred_license_name == "MIT"
+    story = (run / "per_component" / comp.slug / pipeline.STORY_FILENAME).read_text(
+        encoding="utf-8"
+    )
+    assert "no purl" in story
+    assert "mocked sources ok" in story
