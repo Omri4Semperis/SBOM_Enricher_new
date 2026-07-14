@@ -176,7 +176,7 @@ Phase-notes, report and stop.
 ## Outcome
 
 Objective: Claude license inference + locked retry, wired into pipeline
-HEAD: {fill after completion commit} | Branch: master
+HEAD: 3f6429e | Branch: master
 Files changed:
 - docs/plans/v2-enricher/PLAN.md
 - docs/plans/v2-enricher/P3_license_inference.md
