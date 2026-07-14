@@ -54,7 +54,7 @@ decision, nothing more.
 | Phase                                                             | Purpose                                                              | Depends on | Status  | Baseline | Updated |
 | -                                                                 | -                                                                    | -          | -       | -        | -       |
 | [P1: scaffold_and_config](./P1_scaffold_and_config.md)            | pytest in venv, `src` package, load + validate `default.json`        | -          | done | c221171 | 2026-07-14 |
-| [P2: input_run_dir_stub](./P2_input_run_dir_stub.md)              | CSV validate + parse, run dir + input copies, stub worker pipeline   | P1         | in progress | f65cd87 | 2026-07-14 |
+| [P2: input_run_dir_stub](./P2_input_run_dir_stub.md)              | CSV validate + parse, run dir + input copies, stub worker pipeline   | P1         | done | f65cd87 | 2026-07-14 |
 | [P3: license_inference](./P3_license_inference.md)                | Claude client + license JSON contract + retry, wired into pipeline   | P2         | pending |          |         |
 | [P4: license_download](./P4_license_download.md)                  | viewer→raw rewrite, HTML reject, npm/unpkg fallback, save files      | P3         | pending |          |         |
 | [P5: copyright_extraction](./P5_copyright_extraction.md)          | fixed GPT-4.1 client, file-only copyright (ADR 0003)                 | P4         | pending |          |         |
@@ -104,7 +104,18 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   leaves every inferred field `UNKNOWN`. Story file writer and streaming
   `results_{model_short}_{n}.csv` (`utf-8-sig`, `csv.DictWriter`) live here.
   Column order per DECISIONS "Main results.csv column order".
-- **Notes:**
+- **Notes:** Done. Signatures: `input_csv.read_components(path) -> list[Component]`
+  (`component_name`, `purl`, `lib_name`, `version`, `slug`, `extras`);
+  `run_dir.model_short(model) -> str`, `results_csv_name(model, n) -> str`,
+  `create_run_dir(config, components) -> Path`; `pipeline.ComponentResult`
+  (mutable: `component` + three `inferred_*` default `"UNKNOWN"`);
+  `async process_component(comp, run_dir) -> ComponentResult`;
+  `async run_workers(config, components, run_dir, writer) -> list[ComponentResult]`
+  (Semaphore + as_completed, streams rows); `append_story(run_dir, slug, line)`
+  writes `per_component/{slug}/story.txt`; `main.run(config) -> Path`;
+  `main.py [config.json]` optional argv. Review PASS (lean). Deviations: config
+  snapshot serialized to `input/config.json` (no config path in signature);
+  `runs/` untracked (see P8 Incoming).
 - **Incoming comments:**
 
 ### P3: license_inference
@@ -170,6 +181,8 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   source constant, not config.
 - **Notes:**
 - **Incoming comments:**
+  - From P2: add `runs/` to `.gitignore` (P2 exit demo created untracked
+    `runs/`; `.gitignore` was outside P2 Touch list). See P2 Outcome.
 
 ## On completion
 

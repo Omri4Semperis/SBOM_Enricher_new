@@ -17,10 +17,10 @@ component end to end. No LLM calls yet: every stage is a stub that fills
 
 ## Entry criteria
 
-- [ ] Read this phase's block in `PLAN.md`, including any **Incoming comments**
-- [ ] P1 Status is `done` in `PLAN.md`'s table
-- [ ] `.\.venv\Scripts\python.exe -m pytest -q` → exit 0, all passed
-- [ ] `git status --porcelain` → empty
+- [x] Read this phase's block in `PLAN.md`, including any **Incoming comments**
+- [x] P1 Status is `done` in `PLAN.md`'s table
+- [x] `.\.venv\Scripts\python.exe -m pytest -q` → exit 0, all passed
+- [x] `git status --porcelain` → empty
 
 ## Context capsule
 
@@ -176,3 +176,43 @@ reason to your Phase-notes block, report to the user and stop.
    need: the result object fields/type, `process_component` signature, worker
    pool entry point, Story-append helper, `model_short` helper.
 4. Record full outcome here under **Outcome** (same shape as P1's).
+
+## Deviations
+
+1. `create_run_dir(config, components)` has no config-file path, so
+   `input/config.json` is a JSON snapshot of the resolved `Config` fields
+   (not a byte-copy of the caller's config file).
+2. `main.py` accepts an optional config-path argv (default
+   `configs/default.json`) so Exit criteria can use a temp config without
+   editing `default.json`.
+3. Exit demo left untracked `runs/` — `.gitignore` was outside Touch; flagged
+   to P8 via Incoming comment.
+
+## Outcome
+
+Objective: CSV validate/parse + run dir + stub asyncio worker pipeline
+HEAD: 2a2ebfa | Branch: master
+Files changed:
+- docs/plans/v2-enricher/PLAN.md
+- docs/plans/v2-enricher/P2_input_run_dir_stub.md
+- src/input_csv.py
+- src/main.py
+- src/pipeline.py
+- src/results_csv.py
+- src/run_dir.py
+- tests/fixtures/mini.csv
+- tests/test_input_csv.py
+- tests/test_pipeline.py
+- tests/test_run_dir.py
+Commands run:
+- Entry: `pytest -q` → 6 passed; porcelain empty; baseline `f65cd87`
+- T1: `pytest -q tests/test_input_csv.py` → 5 passed
+- T2: `pytest -q tests/test_run_dir.py` → 3 passed
+- T3/gate: `pytest -q` → 15 passed
+- Exit: `python src\main.py <temp config→mini.csv>` → run dir with
+  `results_ClaudeOpu-4-8_3.csv`, all inferred fields `UNKNOWN`
+- Fresh review (readonly subagent on `git diff f65cd87..HEAD`) → PASS, lean
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 15 passed
+Assumptions: Story filename is `story.txt` (DECISIONS did not name the file)
+Open questions: none
+Next action: P3 (license_inference)
