@@ -1,11 +1,14 @@
-# DECISIONS — grilling of `docs/SUGGESTIONS.md`
+# DECISIONS — grilling of `docs/SUGGESTIONS.md` (archived)
 
-> Live record of the grilling session on the post-run top-3 suggestions
-> (run `20260715_144424_ClaudeOpu-4-8_380`). Source plan (archived):
-> `docs/archive/SUGGESTIONS_2026-07-15_run-144424.md`.
-> Root cause: `docs/analysis/2026-07-15_run-144424_root-cause-analysis.md`.
-> This doc feeds a later implementation-plan session. Deferred/rejected items
-> live in `docs/DEFERRED.md`.
+Signed off: 2026-07-15 · Archived: 2026-07-15
+
+Historical grilling log for the fact-grade-first tranche. Requirements are
+embodied in `docs/plans/archive/fact-grade-tranche/`, ADR-0006, and
+`docs/CONTEXT.md`. Deferred levers + residual risks: `docs/BACKLOG.md`.
+Source plan: `docs/archive/SUGGESTIONS_2026-07-15_run-144424.md`. Root cause:
+`docs/analysis/2026-07-15_run-144424_root-cause-analysis.md`. The companion
+deferred list was archived as
+`docs/archive/DEFERRED_2026-07-15_fact-grade.md` (items migrated to BACKLOG).
 
 ## Branch checklist
 
@@ -65,7 +68,7 @@ Consequences to carry:
   and to the all-three-Hit denominator logic (branch G).
 - Optional later upgrade: `Unscoreable → Hit` only if the agent's downloaded
   file matches a canonical SPDX text for the declared license (needs an SPDX
-  text corpus — deferred, see DEFERRED.md).
+  text corpus — deferred, see BACKLOG #8).
 
 ### C2. Detection method — DECIDED
 
@@ -105,7 +108,7 @@ contributor added is NOT equal.
 ~21 copyright rows; touches `prompts.equality_copyright_prompts` (and the shared
 judge system prompt).
 
-**Deferred (see DEFERRED.md):** the LLM-decided **third verdict**
+**Deferred (see BACKLOG #6):** the LLM-decided **third verdict**
 (`FALSE-GT-suspect`). Rejected from this line of work because it (1) breaks the
 `CONTEXT.md` **Equality** TRUE/FALSE contract, (2) needs a human-review workflow
 for the GT-suspect pile that does not exist, and (3) asks the same system being
@@ -312,14 +315,14 @@ build time):**
    script, `src`/`tests` stay production-clean.
 10. **I. Risks:** #1 bounded; #2–#5 accepted as documented residuals.
 
-**Deferred (see `docs/DEFERRED.md`):** LLM third-verdict; Unscoreable→Hit via
-canonical SPDX; positive NOTICE/header copyright extraction; SPDX-expression set
-comparator. **Owner:** Omri.
+**Deferred (migrated to `docs/BACKLOG.md` levers #6–#8 + Out of scope; historical
+copy in `docs/archive/DEFERRED_2026-07-15_fact-grade.md`):** LLM third-verdict;
+Unscoreable→Hit via canonical SPDX; positive NOTICE/header copyright extraction;
+SPDX-expression set comparator. **Owner:** Omri.
 
 **Durable-decision note:** the new `Unscoreable` grade widens the `CONTEXT.md`
 **Scoring Outcome** term (was closed at 3) and the **Equality** term (adds the
-`UNSCOREABLE` sentinel). These warrant a `CONTEXT.md` update + an ADR — to be done
-in the implementation session (offered, not forced).
+`UNSCOREABLE` sentinel). Done in implementation (ADR-0006 + CONTEXT update).
 
-Status: signed off — proceed to implementation-plan session (see
-`docs/HANDOFF.md`).
+Status: signed off and implemented — plan at
+`docs/plans/archive/fact-grade-tranche/`.

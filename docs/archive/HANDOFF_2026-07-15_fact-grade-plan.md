@@ -1,6 +1,11 @@
 # HANDOFF — Build the implementation plan for the grilled suggestions
 
-Consumed: 2026-07-15 (plan created at `docs/plans/fact-grade-tranche/`; P1 done, now executing P2)
+Consumed: 2026-07-15 · Archived: 2026-07-15
+
+> Spent. Plan built and executed; now at
+> `docs/plans/archive/fact-grade-tranche/`. Decisions →
+> `docs/archive/DECISIONS_2026-07-15_fact-grade.md`; deferred levers →
+> `docs/BACKLOG.md` (from archived `DEFERRED_2026-07-15_fact-grade.md`).
 
 - Objective: Turn the signed-off grilling decisions in `docs/DECISIONS.md` into a
   multi-phase implementation plan (via `complex-plan-create`), then implement.

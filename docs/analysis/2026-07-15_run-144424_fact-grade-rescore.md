@@ -7,7 +7,8 @@ the **real** production functions plus bounded live HTTP probes — never a
 reimplemented policy.
 
 Source: `docs/analysis/2026-07-15_run-144424_root-cause-analysis.md` (the
-predictions), `docs/DECISIONS.md` (the committed design). Reproduce with
+predictions), `docs/archive/DECISIONS_2026-07-15_fact-grade.md` (the committed
+design). Reproduce with
 `python ad_hoc_scripts/analysis/rescore.py` (probe date: 2026-07-15; live
 network required).
 

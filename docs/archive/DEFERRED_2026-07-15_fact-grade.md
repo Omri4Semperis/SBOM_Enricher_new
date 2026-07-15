@@ -1,8 +1,11 @@
-# DEFERRED — grilling of `docs/SUGGESTIONS.md`
+# DEFERRED — grilling of `docs/SUGGESTIONS.md` (archived)
 
-> Items pushed out of the committed "fact-grade-first" tranche during the
-> grilling of `docs/SUGGESTIONS.md`. Each has an owner and a trigger to revisit.
-> Committed decisions live in `docs/DECISIONS.md`.
+Archived: 2026-07-15
+
+Historical parking lot from the fact-grade grilling. Live deferred levers and
+the SPDX-expression out-of-scope note now live in `docs/BACKLOG.md` (levers
+#6–#8 + Out of scope). Companion decisions:
+`docs/archive/DECISIONS_2026-07-15_fact-grade.md`.
 
 ## Deferred
 

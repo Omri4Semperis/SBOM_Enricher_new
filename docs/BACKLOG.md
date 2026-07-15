@@ -1,7 +1,7 @@
-# SBOM Enricher v2 — Backlog
+# SBOM Enricher — Backlog
 
-> Explicit parking lot from the grilling session. Nothing here is in v2 scope.
-> Pull a lever only when a real run forces it. Residual risks are accepted as-is.
+> Explicit parking lot from grilling sessions. Pull a lever only when a real
+> run forces it. Residual risks are accepted as-is.
 
 ## Deferred levers
 
@@ -11,6 +11,9 @@
 | 2 | **Broaden deterministic download fallback** beyond npm/unpkg (PyPI, Maven, Cargo, …) | Non-npm ecosystems routinely fail download despite Claude finding a name | Omri — when ecosystem mix demands it |
 | 3 | **Mid-run circuit-breaker** (abort / pause on systemic failure, e.g. mass 401s) | All-`UNKNOWN` + Ctrl-C proves too painful in practice | Omri — only if it actually bites |
 | 5 | **Promote GPT-4.1 to a `default.json` knob** | A second GPT deployment appears and needs swapping | Omri — trivial when needed |
+| 6 | **Deterministic GT-suspect flag** (not an LLM third verdict) — mark mismatches where evidence backs *our* side for human triage; preferred form: lexical/evidence rules, grill before building | After fact-grade tranche, residual Mismatch pile is dominated by genuine agent-vs-GT disagreements worth triage | Omri |
+| 7 | **Positive copyright from NOTICE / source headers** — extract the correct holder when LICENSE has no holder line (beyond the reject-only denylist) | Copyright recall becomes the binding constraint on a score-bearing run | Omri |
+| 8 | **Unscoreable → Hit via canonical SPDX text** — upgrade URL `Unscoreable` to `Hit` when agent's file matches SPDX corpus for the declared id | `Unscoreable` bucket grows large enough that "not scored" is itself misleading | Omri |
 
 ## Accepted residual risks (no mitigation in v2)
 
@@ -35,3 +38,4 @@ Already locked as non-goals for this build — listed here so they don't reappea
 - Reusing/porting `knowledge/old_code/` (inspiration only)
 - Non-CSV input (`.xlsx` / `.json` / TSV)
 - Multi-file / directory batching per run
+- SPDX-expression set comparator for compound licenses (~7 rows; genuine method gap, not fact-grade-cheap)
