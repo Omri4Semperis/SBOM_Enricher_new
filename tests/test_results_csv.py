@@ -7,7 +7,8 @@ from pathlib import Path
 
 from input_csv import Component
 from pipeline import ComponentResult
-from results_csv import ResultsWriter, build_fieldnames, detect_gt_columns
+from pricing import CallMeta
+from results_csv import ExtendedWriter, ResultsWriter, build_fieldnames, detect_gt_columns
 
 
 def test_detect_gt_columns():
@@ -128,3 +129,33 @@ def test_writer_non_audit_unchanged(tmp_path):
         "notes",
     ]
     assert "is_eq_license_name" not in rows[0]
+
+
+def test_extended_row_numeric_license_cost(tmp_path):
+    run_dir = tmp_path / "run"
+    (run_dir / "per_component" / "pkg@1").mkdir(parents=True)
+    path = tmp_path / "out_extended.csv"
+    meta = CallMeta()
+    meta.add_call(cost_usd=0.0042, raw='{"total_cost_usd":0.0042,"ok":true}')
+    result = ComponentResult(
+        component=Component(
+            component_name="pkg@1",
+            purl="pkg:npm/pkg@1",
+            lib_name="pkg",
+            version="1",
+            slug="pkg@1",
+            extras={},
+        ),
+        inferred_license_name="MIT",
+        inferred_license_code_url="https://example.com/LICENSE",
+        inferred_copyright="UNKNOWN",
+        license_meta=meta,
+    )
+    with ExtendedWriter(path, [], run_dir) as w:
+        w.write_row(result)
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+    assert rows[0]["inferencer_cost_usd"] == "0.004200"
+    assert rows[0]["inferencer_cost_usd"] != "unknown"
+    assert rows[0]["inferencer_raw_response"]
+    assert "total_cost_usd" in rows[0]["inferencer_raw_response"]

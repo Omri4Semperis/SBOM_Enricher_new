@@ -122,7 +122,8 @@ def test_fixture_run_extended_csv_and_summary(tmp_path, monkeypatch):
     assert "cache_hit" in rows[0]
     assert rows[0]["cache_hit"] == "false"
     assert "inferencer_cost_usd" in rows[0]
-    assert rows[0]["inferencer_cost_usd"] == UNKNOWN_COST
+    # Fake infer returns plain dict → empty CallMeta (0 calls) → $0, not unknown.
+    assert rows[0]["inferencer_cost_usd"] == "0.000000"
     assert "download_attempts" in rows[0]
     assert rows[0]["download_attempts"]
     assert "inferencer_elapsed_s" in rows[0]

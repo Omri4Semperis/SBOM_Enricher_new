@@ -15,6 +15,7 @@ from download import fetch_license_file
 from equality import compare_copyright, compare_name, compare_url_content
 from gpt41_client import Gpt41Client
 from input_csv import Component
+from pricing import CallMeta
 from results_csv import ResultsWriter
 from scoring import grade_row
 
@@ -38,6 +39,7 @@ class ComponentResult:
     eq_license_code_url_reason: str = ""
     eq_copyright_reason: str = ""
     grades: dict[str, str] = field(default_factory=dict)
+    license_meta: CallMeta = field(default_factory=CallMeta)
 
 
 def story_path(run_dir: Path, slug: str) -> Path:
@@ -74,7 +76,12 @@ async def process_component(
         return result
 
     t0 = time.perf_counter()
-    data = await infer_license(comp.purl, comp.lib_name, comp.version, model)
+    inferred = await infer_license(comp.purl, comp.lib_name, comp.version, model)
+    # Fakes may still return a plain dict; real client returns (dict, CallMeta).
+    if isinstance(inferred, tuple):
+        data, result.license_meta = inferred
+    else:
+        data = inferred
     elapsed = time.perf_counter() - t0
 
     result.inferred_license_name = data["license_name"]

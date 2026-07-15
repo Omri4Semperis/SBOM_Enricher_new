@@ -162,10 +162,16 @@ class ExtendedWriter:
         row.update(
             {
                 "cache_hit": "true" if result.from_cache else "false",
-                "inferencer_raw_response": "",
+                "inferencer_raw_response": (
+                    ""
+                    if result.from_cache
+                    else "\n---\n".join(result.license_meta.raws)
+                ),
                 "license_reasoning": reasons.get("license", ""),
                 "inferencer_elapsed_s": f"{infer_s:.3f}" if infer_s is not None else "",
-                "inferencer_cost_usd": UNKNOWN_COST if not result.from_cache else "",
+                "inferencer_cost_usd": (
+                    "" if result.from_cache else result.license_meta.cost_cell()
+                ),
                 "download_attempts": " | ".join(result.download_attempts),
                 "license_file_path": (
                     str(result.license_file_path) if result.license_file_path else ""
