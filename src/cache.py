@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
 
+from pricing import CallMeta, combine, format_cost
+
 INDEX_NAME = "cache.csv"
 LICENSES_SUBDIR = "licenses"
 _COLUMNS = (
@@ -16,6 +18,7 @@ _COLUMNS = (
     "inferred_license_code_url",
     "inferred_copyright",
     "license_filename",
+    "cached_historical_cost_usd",
 )
 
 
@@ -26,6 +29,7 @@ class CachedRecord:
     inferred_license_code_url: str
     inferred_copyright: str
     license_path: Path
+    cached_historical_cost: str = ""
 
 
 def _known(value: str) -> bool:
@@ -84,6 +88,7 @@ def read_cache(cache_read: Path | None, component_name: str) -> CachedRecord | N
         inferred_license_code_url=url,
         inferred_copyright=copyright_,
         license_path=license_path,
+        cached_historical_cost=(row.get("cached_historical_cost_usd") or "").strip(),
     )
 
 
@@ -105,6 +110,14 @@ def write_cache(cache_write: Path | None, component_name: str, result: object) -
     licenses = cache_write / LICENSES_SUBDIR
     licenses.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, licenses / filename)
+    historical_cost = format_cost(
+        combine(
+            [
+                getattr(result, "license_meta", CallMeta()),
+                getattr(result, "copyright_meta", CallMeta()),
+            ]
+        ).total_usd()
+    )
     index_path = cache_write / INDEX_NAME
     rows = _load_index(index_path)
     rows[component_name] = {
@@ -113,6 +126,7 @@ def write_cache(cache_write: Path | None, component_name: str, result: object) -
         "inferred_license_code_url": result.inferred_license_code_url,  # type: ignore[attr-defined]
         "inferred_copyright": result.inferred_copyright,  # type: ignore[attr-defined]
         "license_filename": filename,
+        "cached_historical_cost_usd": historical_cost,
     }
     _write_index(index_path, rows)
     return True

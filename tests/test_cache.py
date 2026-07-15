@@ -1,8 +1,10 @@
+import csv
 from pathlib import Path
 
 from cache import CachedRecord, read_cache, restore_license_file, write_cache
 from input_csv import Component
 from pipeline import ComponentResult
+from pricing import CallMeta
 
 
 def _full_result(tmp_path: Path, name: str = "solo@1.0") -> ComponentResult:
@@ -64,6 +66,55 @@ def test_hit_restores_file_into_run_dir(tmp_path):
     assert flat.is_file()
     assert (run / "per_component" / "solo@1.0" / "solo@1.0.txt").is_file()
     assert flat.read_bytes() == record.license_path.read_bytes()
+
+
+def test_store_writes_historical_cost_from_metas(tmp_path):
+    cache_dir = tmp_path / "cache"
+    result = _full_result(tmp_path)
+    result.license_meta = CallMeta(known_usd=0.01, billable_calls=1)
+    result.copyright_meta = CallMeta(known_usd=0.02, billable_calls=1)
+    assert write_cache(cache_dir, "solo@1.0", result) is True
+    with (cache_dir / "cache.csv").open(newline="", encoding="utf-8-sig") as f:
+        row = next(csv.DictReader(f))
+    assert row["cached_historical_cost_usd"] == "0.030000"
+
+
+def test_store_writes_unknown_historical_cost_when_meta_missing(tmp_path):
+    cache_dir = tmp_path / "cache"
+    result = _full_result(tmp_path)
+    result.copyright_meta = CallMeta(unknown_calls=1)
+    assert write_cache(cache_dir, "solo@1.0", result) is True
+    with (cache_dir / "cache.csv").open(newline="", encoding="utf-8-sig") as f:
+        row = next(csv.DictReader(f))
+    assert row["cached_historical_cost_usd"] == "unknown"
+
+
+def test_read_returns_historical_cost_written_by_write_cache(tmp_path):
+    cache_dir = tmp_path / "cache"
+    result = _full_result(tmp_path)
+    result.license_meta = CallMeta(known_usd=0.05, billable_calls=1)
+    write_cache(cache_dir, "solo@1.0", result)
+    got = read_cache(cache_dir, "solo@1.0")
+    assert got is not None
+    assert got.cached_historical_cost == "0.050000"
+
+
+def test_read_old_index_without_historical_cost_column_still_hits(tmp_path):
+    cache_dir = tmp_path / "cache"
+    result = _full_result(tmp_path)
+    write_cache(cache_dir, "solo@1.0", result)
+    index_path = cache_dir / "cache.csv"
+    with index_path.open(newline="", encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+        old_fieldnames = [c for c in rows[0].keys() if c != "cached_historical_cost_usd"]
+    with index_path.open("w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=old_fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({c: row[c] for c in old_fieldnames})
+    got = read_cache(cache_dir, "solo@1.0")
+    assert got is not None
+    assert got.cached_historical_cost == ""
 
 
 def test_store_distinct_keys_keep_distinct_files(tmp_path):
