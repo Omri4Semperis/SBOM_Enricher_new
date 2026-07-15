@@ -29,6 +29,15 @@ def _is_placeholder_copyright(text: str) -> bool:
     return bool(_PLACEHOLDER_TOKEN_RE.search(text))
 
 
+_STRAY_HOLDERS = frozenset({"the go authors", "the android open source project"})
+
+
+def _is_stray_holder(text: str) -> bool:
+    """Known generic upstream holder unrelated to the package being resolved."""
+    lowered = (text or "").lower()
+    return any(phrase in lowered for phrase in _STRAY_HOLDERS)
+
+
 def _unknown(reason: str) -> dict:
     return {"copyright": "UNKNOWN", "reasoning": reason}
 
@@ -123,7 +132,9 @@ async def resolve_copyright(
 ) -> tuple[dict, CallMeta]:
     """File → npm author → Claude web → UNKNOWN. Never overwrite an earlier success."""
     file_data, file_meta = await extract_copyright(license_text)
-    if file_data["copyright"].upper() != "UNKNOWN":
+    if file_data["copyright"].upper() != "UNKNOWN" and not _is_stray_holder(
+        file_data["copyright"]
+    ):
         return file_data, file_meta
 
     npm = await asyncio.to_thread(_npm_author_copyright, purl or "")
@@ -138,11 +149,15 @@ async def resolve_copyright(
         not copyright_text
         or copyright_text.upper() == "UNKNOWN"
         or _is_placeholder_copyright(copyright_text)
+        or _is_stray_holder(copyright_text)
     ):
-        reason = (
-            "placeholder template copyright"
-            if copyright_text and _is_placeholder_copyright(copyright_text)
-            else reasoning if copyright_text.upper() == "UNKNOWN" else "web copyright UNKNOWN"
-        )
+        if copyright_text and _is_stray_holder(copyright_text):
+            reason = "stray upstream holder"
+        elif copyright_text and _is_placeholder_copyright(copyright_text):
+            reason = "placeholder template copyright"
+        elif copyright_text.upper() == "UNKNOWN":
+            reason = reasoning
+        else:
+            reason = "web copyright UNKNOWN"
         return _unknown(reason), meta
     return {"copyright": copyright_text, "reasoning": f"web: {reasoning}"}, meta

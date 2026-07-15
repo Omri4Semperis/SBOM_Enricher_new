@@ -323,6 +323,49 @@ def test_resolve_web_when_file_and_npm_unknown(monkeypatch):
     assert meta.total_usd() == 0.007
 
 
+def test_resolve_denylist_stray_holder_file(monkeypatch):
+    import copyright as copyright_mod
+
+    async def fake_extract(text):
+        return {
+            "copyright": "Copyright (c) 2019 The Go Authors",
+            "reasoning": "from file",
+        }, CallMeta()
+
+    async def fake_web(*_a, **_k):
+        return copyright_mod._unknown("no notice"), CallMeta()
+
+    monkeypatch.setattr(copyright_mod, "extract_copyright", fake_extract)
+    monkeypatch.setattr(copyright_mod, "_npm_author_copyright", lambda _p: None)
+    monkeypatch.setattr(copyright_mod, "infer_copyright_web", fake_web)
+
+    out, _meta = asyncio.run(
+        copyright_mod.resolve_copyright(
+            MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
+        )
+    )
+    assert out["copyright"] == "UNKNOWN"
+
+
+def test_resolve_keeps_normal_holder(monkeypatch):
+    import copyright as copyright_mod
+
+    async def fake_extract(text):
+        return {
+            "copyright": "Copyright (c) 2020 John-David Dalton",
+            "reasoning": "from file",
+        }, CallMeta()
+
+    monkeypatch.setattr(copyright_mod, "extract_copyright", fake_extract)
+
+    out, _meta = asyncio.run(
+        copyright_mod.resolve_copyright(
+            MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
+        )
+    )
+    assert out["copyright"] == "Copyright (c) 2020 John-David Dalton"
+
+
 def test_resolve_web_placeholder_rejected(monkeypatch):
     import copyright as copyright_mod
 
