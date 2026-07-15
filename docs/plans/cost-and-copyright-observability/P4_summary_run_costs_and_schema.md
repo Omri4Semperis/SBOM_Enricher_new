@@ -175,3 +175,21 @@ Assumptions: {numbered, or "none"}
 Open questions: {numbered, or "none"}
 Next action: P5 per PLAN.md's table
 ```
+
+## Outcome
+
+Objective: real summary.json cost rollup + run_info grouping + drop saved_by_cache
+HEAD: d12e134 | Branch: master
+Files changed:
+- docs/plans/cost-and-copyright-observability/PLAN.md
+- src/summary.py
+- tests/test_summary.py
+Commands run:
+- Entry: `pytest -q` → 113 passed; `git status --porcelain` → empty
+- T1 Verify: `pytest tests/test_summary.py -q` → 7 passed
+- T2 Verify: `pytest tests/test_summary.py -q` → 7 passed; full suite → 115 passed
+- Validation gate: `pytest -q` → 115 passed; fresh review approve-with-notes (shrink avg ternaries) → fixed → 115 passed
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 115 passed
+Assumptions: none
+Open questions: none
+Next action: P5 per PLAN.md's table
