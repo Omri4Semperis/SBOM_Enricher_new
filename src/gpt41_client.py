@@ -8,6 +8,7 @@ import re
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import APIConnectionError, APITimeoutError, AsyncAzureOpenAI, RateLimitError
 
+from pricing import CallMeta, compute_cost
 from retry import with_retries
 
 AZURE_ENDPOINT = "https://ai-foundry-rnd-dev.cognitiveservices.azure.com/"
@@ -63,8 +64,11 @@ class Gpt41Client:
             max_retries=0,
         )
 
-    async def complete_json(self, system_prompt: str, user_prompt: str) -> dict:
-        """Chat once with retries; return parsed JSON object."""
+    async def complete_json(
+        self, system_prompt: str, user_prompt: str
+    ) -> tuple[dict, CallMeta]:
+        """Chat with retries; return (parsed JSON object, CallMeta)."""
+        meta = CallMeta()
 
         async def once() -> dict:
             try:
@@ -86,6 +90,22 @@ class Gpt41Client:
                 content = response.choices[0].message.content or ""
             except (IndexError, AttributeError) as e:
                 raise ParseFailure(f"empty/malformed response: {e}") from e
+
+            usage = getattr(response, "usage", None)
+            if usage is None:
+                cost_usd = None
+            else:
+                prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0
+                completion_tokens = getattr(usage, "completion_tokens", 0) or 0
+                details = getattr(usage, "prompt_tokens_details", None)
+                cached_tokens = (
+                    (getattr(details, "cached_tokens", 0) or 0) if details else 0
+                )
+                cost_usd = compute_cost(
+                    "gpt-4.1", prompt_tokens, completion_tokens, cached_tokens
+                )
+            meta.add_call(cost_usd=cost_usd, raw=content)
             return _parse_json_content(content)
 
-        return await with_retries(once, classify=_classify)
+        data = await with_retries(once, classify=_classify)
+        return data, meta

@@ -7,7 +7,7 @@ import retry
 from gpt41_client import Gpt41Client, ParseFailure
 
 
-def _mock_azure(monkeypatch, content: str | list[str]):
+def _mock_azure(monkeypatch, content: str | list[str], *, usage=None):
     """Patch credential + AsyncAzureOpenAI; content is one reply or a sequence."""
     replies = content if isinstance(content, list) else [content]
     state = {"i": 0}
@@ -22,6 +22,7 @@ def _mock_azure(monkeypatch, content: str | list[str]):
         choice.message = msg
         resp = MagicMock()
         resp.choices = [choice]
+        resp.usage = usage
         return resp
 
     client = MagicMock()
@@ -37,12 +38,21 @@ def _mock_azure(monkeypatch, content: str | list[str]):
 
 
 def test_client_valid_json(monkeypatch):
-    _mock_azure(monkeypatch, '{"copyright": "Copyright (c) 2020 Jane Doe", "reasoning": "ok"}')
-    out = asyncio.run(
-        Gpt41Client().complete_json("sys", "user")
+    usage = MagicMock()
+    usage.prompt_tokens = 100
+    usage.completion_tokens = 50
+    usage.prompt_tokens_details = None
+    _mock_azure(
+        monkeypatch,
+        '{"copyright": "Copyright (c) 2020 Jane Doe", "reasoning": "ok"}',
+        usage=usage,
     )
+    out, meta = asyncio.run(Gpt41Client().complete_json("sys", "user"))
     assert out["copyright"] == "Copyright (c) 2020 Jane Doe"
     assert out["reasoning"] == "ok"
+    assert meta.billable_calls == 1
+    assert meta.cost_cell() != "unknown"
+    assert meta.raws[0]
 
 
 def test_client_garbage_parse_retry_then_error(monkeypatch):

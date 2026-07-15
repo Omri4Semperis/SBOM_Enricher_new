@@ -69,7 +69,7 @@ captured at phase start. Updated is the date of the last status change. -->
 | Phase                                                                   | Purpose                                                              | Depends on | Status  | Baseline | Updated |
 | -                                                                       | -                                                                   | -          | -       | -        | -       |
 | [P1: claude_cost_capture](./P1_claude_cost_capture.md)                  | `CallMeta` accumulator + Claude cost/raw/tokens → extended CSV       | -          | done | 27c1557 | 2026-07-15 |
-| [P2: gpt41_cost_capture](./P2_gpt41_cost_capture.md)                    | GPT-4.1 cost/raw for copyright + equality judges → extended CSV      | P1         | pending |          |         |
+| [P2: gpt41_cost_capture](./P2_gpt41_cost_capture.md)                    | GPT-4.1 cost/raw for copyright + equality judges → extended CSV      | P1         | in progress | 462e80a | 2026-07-15 |
 | [P3: copyright_fallback_chain](./P3_copyright_fallback_chain.md)        | npm author → Claude web copyright fallback, cost into copyright bucket | P2       | pending |          |         |
 | [P4: summary_run_costs_and_schema](./P4_summary_run_costs_and_schema.md)| Real `summary.json` cost rollup + `run_info` grouping + drop saved_by_cache | P3   | pending |          |         |
 | [P5: cached_historical_cost](./P5_cached_historical_cost.md)            | Persist Cached Historical Cost in cache entries (provenance only)    | P4         | pending |          |         |
