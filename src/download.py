@@ -330,7 +330,7 @@ async def fetch_license_file(
             result.saved_path = path
             return result
 
-    nuget_cands = nuget_candidates(purl)
+    nuget_cands = await asyncio.to_thread(nuget_candidates, purl)
     if not (purl or "").strip():
         attempts.append("empty purl: skip nuget fallback")
     elif not nuget_cands:

@@ -331,6 +331,29 @@ def test_fetch_nuget_fallback_after_bad_claude(tmp_path, monkeypatch):
     assert result.saved_path.read_bytes() == b"MIT License\n"
 
 
+def test_fetch_nuget_offloaded_from_loop(tmp_path, monkeypatch):
+    calls = []
+    real_to_thread = asyncio.to_thread
+
+    async def spying_to_thread(func, *args, **kwargs):
+        calls.append(func)
+        return await real_to_thread(func, *args, **kwargs)
+
+    monkeypatch.setattr("download.asyncio.to_thread", spying_to_thread)
+    monkeypatch.setattr(
+        "download.requests.get",
+        lambda url, timeout=None: _ok_response(_NUSPEC_WITH_REPO, "application/xml"),
+    )
+    (tmp_path / "per_component" / "newtonsoft.json@13.0.3").mkdir(parents=True)
+
+    asyncio.run(
+        fetch_license_file(
+            "", "pkg:nuget/Newtonsoft.Json@13.0.3", tmp_path, "newtonsoft.json@13.0.3"
+        )
+    )
+    assert nuget_candidates in calls, "nuget_candidates was not dispatched via asyncio.to_thread"
+
+
 def test_fetch_rejects_generic_template(tmp_path, monkeypatch):
     called = []
 
