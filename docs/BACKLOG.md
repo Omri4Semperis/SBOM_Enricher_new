@@ -20,6 +20,10 @@
 | 2 | **Stale cache** — all-or-nothing hit on `component_name`; upstream LICENSE/copyright changes are invisible until `cache_read` is cleared/redirected | Cache is a speed win for identical re-runs; operator owns invalidation |
 | 3 | **Provider rate limits** — mid-run 429s become per-row `UNKNOWN`s (retries then fail-closed); no run abort | Matches locked "no circuit-breaker" stance; circuit-breaker is lever #3 |
 | 4 | **Wrong-but-confident enrichment** — Claude can return a plausible bad URL/name → mismatch (audit) or silent wrong (non-audit), not `UNKNOWN` | Consistency judge is lever #1; v2 prefers simpler pipeline |
+| 5 | **NuGet repo-LICENSE version skew** — the nuspec `<repository url>` may not be version-pinned, so a fallback fetch can pull `HEAD`'s LICENSE instead of the packaged version's | Strictly better than empty; only fires when Claude returned nothing |
+| 6 | **HTML-signal false positive** — a real raw license mis-served with `Content-Type: text/html` wrongly grades `Unscoreable` | Low: requires a body-sniff match *and* the inferred file already downloaded OK; `Unscoreable` is neutral, not a scoring loss |
+| 7 | **Copyright denylist upkeep** — the stray-holder reject list (`src/copyright.py`) grows manually as new generic upstream notices appear | Small, additive maintenance |
+| 8 | **Empty→Unknown flatters recall** — a fetchable license missed only by a transient network flake grades `Unknown`, not `Mismatch` | `Unknown` is honest ("didn't answer"); retries mitigate |
 
 ## Out of scope (non-goals, not levers)
 
