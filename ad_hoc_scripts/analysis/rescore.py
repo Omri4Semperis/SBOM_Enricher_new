@@ -1,39 +1,37 @@
-"""Re-score the run under a transparent 'fair-to-agent' policy.
+"""Re-score the frozen run using the REAL P1-P3 production functions.
 
-Every Mismatch/Unknown is classified into a root-cause class, then re-graded
-per an explicit policy that separates genuine agent errors from GT-quality and
-judge-strictness artifacts. Emits both the raw and adjusted tallies plus a
-per-row audit trail.
+Grading logic is never reimplemented here (DECISIONS H.1a) — this script only
+imports `grade_item`, `looks_like_html`, `nuget_candidates`, `_is_stray_holder`
+from `src/` and adds bounded live HTTP probes for the two facts that need the
+network and cannot be reconstructed from the frozen CSV: whether a GT URL is an
+HTML landing page (P1's `Unscoreable`), and whether the P2 NuGet fallback would
+now resolve a downloadable LICENSE file.
 """
 
 from __future__ import annotations
 
 import csv
 import json
-import re
+import sys
 from collections import Counter
 from pathlib import Path
 
+import requests
+
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / "src"))
+from copyright import _is_stray_holder  # noqa: E402
+from download import looks_like_html, nuget_candidates, rewrite_viewer_to_raw  # noqa: E402
+from scoring import grade_item  # noqa: E402
+
 RUN = REPO / "runs" / "20260715_144424_ClaudeOpu-4-8_380"
 EXT = RUN / "results_ClaudeOpu-4-8_380_extended.csv"
 OUT = REPO / "ad_hoc_scripts" / "ad_hoc_scripts_output"
 OUT.mkdir(parents=True, exist_ok=True)
 csv.field_size_limit(10_000_000)
 
-# Proprietary / EULA GT hosts: no public downloadable OSS license file exists,
-# so an empty inference is 'Unknown' (didn't know) rather than a wrong guess.
-PROPRIETARY_MARKERS = (
-    "devexpress.com", "js.devexpress.com", "componentspace.com", "zzzprojects.com",
-    "fontawesome.com/license", "visualstudio.microsoft.com/license",
-    "go.microsoft.com/fwlink", "learn.microsoft.com", "download.microsoft.com",
-    "sqlite.org/copyright", "devextreme",
-)
-
-
-def eco(purl: str) -> str:
-    m = re.match(r"pkg:([^/]+)/", (purl or "").strip())
-    return m.group(1).lower() if m else "(none)"
+FETCH_TIMEOUT_S = 20.0
+GRADE_ORDER = ("Hit", "Mismatch", "Unknown", "Unscoreable")
 
 
 def grades(row: dict) -> dict:
@@ -48,74 +46,72 @@ def load() -> list[dict]:
         return list(csv.DictReader(f))
 
 
-# ---- copyright holder comparison helpers ----
-_YEAR = re.compile(r"\b\d{4}\b|\b\d{4}\s*[-–]\s*\d{4}\b")
-_MARK = re.compile(r"\(c\)|©|ï¿½|copyright|all rights reserved", re.IGNORECASE)
+def probe_gt_content_type(gt_url: str) -> str:
+    """Live probe: 'html' | 'ok' | 'error'. Mirrors the fetch signal `_try_one`
+    uses (viewer rewrite + `looks_like_html`), without the retry/disk-write
+    machinery a full `fetch_license_file` call would need for a read-only check."""
+    url = rewrite_viewer_to_raw((gt_url or "").strip())
+    if not url:
+        return "error"
+    try:
+        resp = requests.get(url, timeout=FETCH_TIMEOUT_S)
+    except requests.RequestException:
+        return "error"
+    if resp.status_code != 200 or not resp.content:
+        return "error"
+    return "html" if looks_like_html(resp.content, resp.headers.get("Content-Type", "")) else "ok"
 
 
-def holder_tokens(text: str) -> set[str]:
-    t = _MARK.sub(" ", text or "")
-    t = _YEAR.sub(" ", t)
-    # split on newlines / semicolons / commas into holder chunks, keep alnum words
-    chunks = re.split(r"[\n;,]", t)
-    out: set[str] = set()
-    for c in chunks:
-        words = re.findall(r"[A-Za-z][A-Za-z.&]+", c.lower())
-        words = [w for w in words if w not in {"inc", "ltd", "llc", "corp", "corporation", "the", "and", "contributors", "co", "gmbh"}]
-        if words:
-            out.add(" ".join(words))
-    return {x for x in out if x}
+def adjusted_url_grade(row: dict) -> tuple[str, bool]:
+    """Real `grade_item`, live-probing the GT URL only for the one reason the
+    old code collapses HTML-landing-page and any-other-failure into one
+    string ('gt_url_download_failed') — see P4 doc capsule."""
+    inferred = row.get("inferred_license_code_url", "")
+    is_eq = row.get("is_eq_license_code_url", "") or ""
+    probed = False
+    if row.get("eq_license_code_url_reason", "") == "gt_url_download_failed":
+        probed = True
+        if probe_gt_content_type(row.get("license_code_url", "")) == "html":
+            is_eq = "UNSCOREABLE"
+    return grade_item(inferred, is_eq), probed
 
 
-def classify_copyright(gt: str, inf: str) -> str:
-    g = holder_tokens(gt)
-    i = holder_tokens(inf)
-    if not g or not i:
-        return "cp_unparseable"
-    # year-only: same holder set once years removed
-    if g == i:
-        return "cp_year_or_format_only"
-    # subset/superset: one holder set contained in the other (e.g. 'X' vs 'X and Contributors')
-    if g <= i or i <= g:
-        return "cp_superset_subset"
-    # any shared primary holder token
-    if g & i:
-        return "cp_partial_overlap"
-    return "cp_different_holder"
+def adjusted_copyright_grade(row: dict) -> tuple[str, bool]:
+    """Real `grade_item`; a P3 stray-holder is rejected before `resolve_copyright`
+    ever emits it, so simulate that rejection by blanking it before grading."""
+    inferred = row.get("inferred_copyright", "")
+    is_eq = row.get("is_eq_copyright", "") or ""
+    stray = bool(inferred.strip()) and _is_stray_holder(inferred)
+    return grade_item("" if stray else inferred, is_eq), stray
 
 
-def classify_url(row: dict) -> str:
-    reason = row.get("eq_license_code_url_reason", "") or ""
-    inf = (row.get("inferred_license_code_url") or "").strip()
-    gt = (row.get("license_code_url") or "").strip().lower()
-    if "gt_url_download_failed" in reason:
-        return "url_gt_not_a_file"  # agent produced a working license URL; GT is a landing page
-    if "inferred_url_download_failed" in reason:
-        if not inf:
-            if any(m in gt for m in PROPRIETARY_MARKERS):
-                return "url_proprietary_no_file"  # EULA; treat empty as Unknown
-            return "url_agent_missed"  # OSS license existed, agent gave nothing
-        return "url_agent_wrong"  # agent gave a URL that 404'd / was HTML
-    if reason.startswith("judge:"):
-        return "url_content_differs"
-    return "url_other"
+def nuget_resolves_now(purl: str) -> bool:
+    """True if the P2 fallback would now find a downloadable (non-HTML) file."""
+    for url in nuget_candidates(purl):
+        try:
+            resp = requests.get(url, timeout=FETCH_TIMEOUT_S)
+        except requests.RequestException:
+            continue
+        if resp.status_code == 200 and resp.content and not looks_like_html(
+            resp.content, resp.headers.get("Content-Type", "")
+        ):
+            return True
+    return False
 
 
-def classify_license_name(gt: str, inf: str) -> str:
-    g = (gt or "").strip().lower()
-    i = (inf or "").strip().lower()
-    eula_gt = "eula" in g or "library license" in g or "library eula" in g
-    eula_inf = "eula" in i
-    if eula_gt and eula_inf:
-        return "ln_eula_naming_granularity"
-    if {"icu"} & {g} and "unicode" in i or ("unicode" in g and "icu" in i):
-        return "ln_synonym"
-    # compound SPDX expressions
-    if (" and " in g or " with " in g) or (" and " in i or " with " in i):
-        return "ln_spdx_expression"
-    if eula_inf and not eula_gt:
-        return "ln_agent_said_eula_but_oss"  # e.g. GT=MIT/Apache, INF=Microsoft-EULA
-    return "ln_other"
+def movement_table(out, field: str, raw: Counter, adj: Counter, n: int) -> None:
+    """Hit-rate excludes Unscoreable from the denominator (DECISIONS G2)."""
+    out(f"## {field}")
+    for grade in GRADE_ORDER:
+        r, a = raw.get(grade, 0), adj.get(grade, 0)
+        if r or a:
+            out(f"  {grade:11s} raw={r:3d}  ->  adjusted={a:3d}")
+    n_raw = n - raw.get("Unscoreable", 0)
+    n_adj = n - adj.get("Unscoreable", 0)
+    out(
+        f"  Hit-rate raw={100*raw.get('Hit',0)/n_raw:.1f}%  "
+        f"adjusted={100*adj.get('Hit',0)/n_adj:.1f}%\n"
+    )
 
 
 def main() -> None:
@@ -124,76 +120,52 @@ def main() -> None:
 
     def out(s=""):
         lines.append(s)
+        print(s)
 
-    # classification counters
-    url_cls, cp_cls, ln_cls = Counter(), Counter(), Counter()
+    out("# Fact-grade re-score (real grade_item + live probes)\n")
+
+    # ---- license_code_url: raw vs adjusted ----
+    raw_url = Counter(grades(r).get("license_code_url", "?") for r in rows)
+    adj_url = Counter()
+    url_probes = 0
     for r in rows:
-        g = grades(r)
-        if g.get("license_code_url") == "Mismatch":
-            url_cls[classify_url(r)] += 1
-        if g.get("copyright") == "Mismatch":
-            cp_cls[classify_copyright(r.get("copyright", ""), r.get("inferred_copyright", ""))] += 1
-        if g.get("license_name") == "Mismatch":
-            ln_cls[classify_license_name(r.get("license_name", ""), r.get("inferred_license_name", ""))] += 1
+        if grades(r).get("license_code_url") != "Mismatch":
+            adj_url[grades(r).get("license_code_url", "?")] += 1
+            continue
+        grade, probed = adjusted_url_grade(r)
+        url_probes += probed
+        adj_url[grade] += 1
+    movement_table(out, "license_code_url", raw_url, adj_url, len(rows))
+    out(f"  ({url_probes} GT URLs live content-type-probed)\n")
 
-    out("# Root-cause classification of mismatches\n")
-    out("## license_code_url mismatch classes")
-    for k, n in url_cls.most_common():
-        out(f"  {n:3d}  {k}")
-    out(f"  TOTAL {sum(url_cls.values())}\n")
-    out("## copyright mismatch classes")
-    for k, n in cp_cls.most_common():
-        out(f"  {n:3d}  {k}")
-    out(f"  TOTAL {sum(cp_cls.values())}\n")
-    out("## license_name mismatch classes")
-    for k, n in ln_cls.most_common():
-        out(f"  {n:3d}  {k}")
-    out(f"  TOTAL {sum(ln_cls.values())}\n")
+    # ---- copyright: raw vs adjusted ----
+    raw_cp = Counter(grades(r).get("copyright", "?") for r in rows)
+    adj_cp = Counter()
+    stray_rows = 0
+    for r in rows:
+        if grades(r).get("copyright") != "Mismatch":
+            adj_cp[grades(r).get("copyright", "?")] += 1
+            continue
+        grade, stray = adjusted_copyright_grade(r)
+        stray_rows += stray
+        adj_cp[grade] += 1
+    movement_table(out, "copyright", raw_cp, adj_cp, len(rows))
+    out(f"  ({stray_rows} rows rejected by the stray-holder guard)\n")
 
-    # ---- Adjusted re-grade policy ----
-    # Classes treated as NOT-an-agent-error (re-graded to Hit):
-    url_to_hit = {"url_gt_not_a_file"}
-    url_to_unknown = {"url_proprietary_no_file"}
-    cp_to_hit = {"cp_year_or_format_only", "cp_superset_subset"}
-    ln_to_hit = {"ln_eula_naming_granularity", "ln_synonym"}
-
-    def adj_grade(r, field):
-        g = grades(r).get(field, "?")
-        if g != "Mismatch":
-            return g
-        if field == "license_code_url":
-            c = classify_url(r)
-            if c in url_to_hit:
-                return "Hit"
-            if c in url_to_unknown:
-                return "Unknown"
-            return "Mismatch"
-        if field == "copyright":
-            c = classify_copyright(r.get("copyright", ""), r.get("inferred_copyright", ""))
-            return "Hit" if c in cp_to_hit else "Mismatch"
-        if field == "license_name":
-            c = classify_license_name(r.get("license_name", ""), r.get("inferred_license_name", ""))
-            return "Hit" if c in ln_to_hit else "Mismatch"
-        return g
-
-    out("# Per-field: raw vs adjusted\n")
-    for field in ("license_name", "license_code_url", "copyright"):
-        raw = Counter(grades(r).get(field, "?") for r in rows)
-        adj = Counter(adj_grade(r, field) for r in rows)
-        out(f"## {field}")
-        for grade in ("Hit", "Mismatch", "Unknown"):
-            out(f"  {grade:9s} raw={raw.get(grade,0):3d}  ->  adjusted={adj.get(grade,0):3d}")
-        n = len(rows)
-        out(f"  Hit-rate raw={100*raw.get('Hit',0)/n:.1f}%  adjusted={100*adj.get('Hit',0)/n:.1f}%\n")
-
-    # all-three-hit
-    raw_all = sum(1 for r in rows if all(grades(r).get(f) == "Hit" for f in ("license_name","license_code_url","copyright")))
-    adj_all = sum(1 for r in rows if all(adj_grade(r, f) == "Hit" for f in ("license_name","license_code_url","copyright")))
-    out(f"All-three-Hit rows: raw={raw_all} ({100*raw_all/len(rows):.1f}%)  adjusted={adj_all} ({100*adj_all/len(rows):.1f}%)")
+    # ---- NuGet fallback recall: empty-URL NuGet rows only (informational —
+    # frozen run's inferred URL stays empty; this measures fallback reach, not
+    # a grade movement on this run) ----
+    nuget_empty = [
+        r for r in rows
+        if r.get("purl", "").lower().startswith("pkg:nuget/")
+        and not (r.get("inferred_license_code_url") or "").strip()
+    ]
+    nuget_recovered = sum(1 for r in nuget_empty if nuget_resolves_now(r.get("purl", "")))
+    out("## NuGet fallback recall (empty-inferred-URL NuGet rows, live probe)")
+    out(f"  {nuget_recovered} / {len(nuget_empty)} now resolve to a downloadable LICENSE file\n")
 
     report = "\n".join(lines)
     (OUT / "rescore.txt").write_text(report, encoding="utf-8")
-    print(report)
 
 
 if __name__ == "__main__":
