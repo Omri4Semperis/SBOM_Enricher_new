@@ -77,6 +77,13 @@ def build_summary(
     ended_at: datetime,
     wall_seconds: float,
 ) -> dict:
+    """Build the `summary.json` payload.
+
+    Every cost cell/total under `costs` (per bucket and the run total) is a
+    real number when all of its contributing billable calls have known
+    provider cost metadata, and `"unknown"` when any of them are missing it —
+    never `$0`. See `_cost_bucket` and `pricing.CallMeta.total_usd`.
+    """
     n = len(results)
     cache_hits = sum(1 for r in results if r.from_cache)
 

@@ -70,6 +70,14 @@ decision, nothing more.
 
 Filenames use `P{N}_{snake_case_title}.md`. "Depends on" lists phase ids or "-".
 
+> **Note (2026-07-15):** the `Baseline` hashes above and the per-phase
+> `Outcome` HEADs (in each `P*.md`) are not a contiguous hash chain — e.g. P2's
+> Outcome HEAD is `bd73882` but P3's Baseline is `234411c`. Baselines were
+> captured fresh at each phase's start rather than chained from the prior
+> phase's Outcome HEAD, so bisecting across phases will not follow a single
+> line; use each phase's own commits (between its Baseline and its Outcome
+> HEAD) for that phase's history instead.
+
 ## Test commands
 
 | Purpose    | Command                                    | Expected                                             |

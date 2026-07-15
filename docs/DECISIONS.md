@@ -77,10 +77,12 @@ Cost.
   remaining rows keep their existing numbers.
 - The first Should-fix in [`archive/FULL-REVIEW_2026-07-15.md`](./archive/FULL-REVIEW_2026-07-15.md) is resolved by documenting functional
   cost output and `unknown` semantics, not by adding an obsolete placeholder
-  warning.
+  warning. **Resolved 2026-07-15** — the semantics are documented at the
+  `summary.py` writer (`build_summary`/`_cost_bucket` docstring).
 - The second Should-fix is resolved by adding a fact-checked note to the
   archived v2 plan explaining why phase baselines and Outcome HEADs are not a
-  contiguous hash chain.
+  contiguous hash chain. **Resolved 2026-07-15** — note added to
+  `docs/plans/archive/v2-enricher/PLAN.md`.
 
 ## Validation
 
