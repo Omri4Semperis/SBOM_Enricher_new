@@ -64,6 +64,26 @@ def test_client_garbage_parse_retry_then_error(monkeypatch):
     assert client.chat.completions.create.await_count == 2
 
 
+def test_client_empty_choices_still_billed(monkeypatch):
+    usage = MagicMock()
+    usage.prompt_tokens = 10
+    usage.completion_tokens = 0
+    usage.prompt_tokens_details = None
+    client, _state = _mock_azure(monkeypatch, "ignored", usage=usage)
+
+    async def create(**_kwargs):
+        resp = MagicMock()
+        resp.choices = []
+        resp.usage = usage
+        return resp
+
+    client.chat.completions.create = AsyncMock(side_effect=create)
+    with pytest.raises(ParseFailure) as ei:
+        asyncio.run(Gpt41Client().complete_json("sys", "user"))
+    assert ei.value.meta.billable_calls >= 1
+    assert ei.value.meta.cost_cell() != "unknown"
+
+
 MIT_LICENSE = """\
 MIT License
 

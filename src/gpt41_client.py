@@ -88,8 +88,10 @@ class Gpt41Client:
 
             try:
                 content = response.choices[0].message.content or ""
+                malformed: BaseException | None = None
             except (IndexError, AttributeError) as e:
-                raise ParseFailure(f"empty/malformed response: {e}") from e
+                content = ""
+                malformed = ParseFailure(f"empty/malformed response: {e}")
 
             usage = getattr(response, "usage", None)
             if usage is None:
@@ -105,6 +107,8 @@ class Gpt41Client:
                     "gpt-4.1", prompt_tokens, completion_tokens, cached_tokens
                 )
             meta.add_call(cost_usd=cost_usd, raw=content)
+            if malformed is not None:
+                raise malformed
             return _parse_json_content(content)
 
         try:
