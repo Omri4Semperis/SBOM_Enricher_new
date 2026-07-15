@@ -2,9 +2,44 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Iterable
+from dataclasses import dataclass, field
 
 UNKNOWN_COST = "unknown"
+
+
+@dataclass
+class CallMeta:
+    """Accumulator for billable LLM call cost/raw metadata."""
+
+    known_usd: float = 0.0
+    billable_calls: int = 0
+    unknown_calls: int = 0
+    raws: list[str] = field(default_factory=list)
+
+    def total_usd(self) -> float | None:
+        return None if self.unknown_calls > 0 else self.known_usd
+
+    def add_call(self, *, cost_usd: float | None, raw: str) -> None:
+        self.billable_calls += 1
+        self.raws.append(raw)
+        if cost_usd is None:
+            self.unknown_calls += 1
+        else:
+            self.known_usd += cost_usd
+
+    def cost_cell(self) -> str:
+        return format_cost(self.total_usd())
+
+
+def combine(metas: Iterable[CallMeta]) -> CallMeta:
+    out = CallMeta()
+    for m in metas:
+        out.known_usd += m.known_usd
+        out.billable_calls += m.billable_calls
+        out.unknown_calls += m.unknown_calls
+        out.raws.extend(m.raws)
+    return out
 
 
 @dataclass(frozen=True)
