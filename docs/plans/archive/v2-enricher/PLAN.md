@@ -2,6 +2,10 @@
 
 COMPLETED 2026-07-15 — historical record, not current truth
 
+> Later note (2026-07-15): terminology settled on **field / enrichment field**
+> for the license / URL / copyright trio; "item"/"element" in this archive
+> are historical phrasing for the same concept (`GT_ITEMS` → `GT_FIELDS`).
+
 **Live document.** Unlike the old design, this file is written to during
 execution. The executor of phase N may edit **only two files**: its own
 `P{N}_{...}.md` doc and this `PLAN.md`. It updates its row in the phase

@@ -1,5 +1,9 @@
 # P7: audit_equality_score
 
+> Later note (2026-07-15): terminology settled on **field / enrichment field**
+> for the license / URL / copyright trio; "item" below is historical phrasing
+> for the same concept (`GT_ITEMS` → `GT_FIELDS`).
+
 **Your workspace.** This doc is writable. The other file you may edit is
 `PLAN.md` — your table row, a concise Phase-notes reflection, and **Incoming
 comments** in another phase's block. Never edit another phase's `P*` doc.

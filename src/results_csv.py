@@ -49,7 +49,7 @@ EXTENDED_EXTRA_COLUMNS = (
 
 
 def detect_gt_columns(extra_columns: list[str] | tuple[str, ...]) -> list[str]:
-    """Ground-truth columns present in input header, locked item order."""
+    """Ground-truth columns present in input header, locked field order."""
     extras = set(extra_columns)
     return [c for c in GT_COLUMNS if c in extras]
 

@@ -95,7 +95,7 @@ def build_summary(
         for r in results
         if not r.from_cache and r.license_file_path is not None
     )
-    # Equality judge costs unknown whenever a GT item was compared (non-short-circuit
+    # Equality judge costs unknown whenever a GT field was compared (non-short-circuit
     # reasons still may not call GPT; count rows with any eq reason starting judge:).
     eq_name_unknown = sum(
         1 for r in results if r.eq_license_name_reason.startswith("judge:")

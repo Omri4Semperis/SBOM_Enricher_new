@@ -190,7 +190,7 @@ by an LLM (GPT-4.1). Returns JSON
 ### Equality / comparison — [LOCKED]
 
 - `is_eq_*` columns hold only `TRUE`/`FALSE`. An `is_eq_*` column is added only
-for an item whose Ground Truth column is supplied.
+for a field whose Ground Truth column is supplied.
 - **License name** and **copyright** use the three-rung ladder:
 identical → normalized-match (lowercase + special-char normalization, e.g.
 `ï¿`, `(c)`) → GPT-4.1 judge → else FALSE.
@@ -207,16 +207,16 @@ is recorded in `results_extended.csv` so FALSE is never ambiguous.
 
 ### Scoring (`score.csv`) — [LOCKED]
 
-- Each inference item is graded as one of:
+- Each inferred enrichment field is graded as one of:
   - **Hit** — inferred value matches ground truth.
   - **Mismatch** — inferred a wrong value.
   - **Unknown** — we didn't know and didn't guess wrong.
-- `score.csv` is a **tally** of item-grade combinations with a `Count` column.
-- Only items that have a supplied ground-truth column are graded/columns.
-- Row count max = `3 ^ (# ground-truth items provided)`; rows with `Count == 0`
+- `score.csv` is a **tally** of field-grade combinations with a `Count` column.
+- Only fields that have a supplied ground-truth column are graded/columns.
+- Row count max = `3 ^ (# ground-truth fields provided)`; rows with `Count == 0`
 are omitted. (All three ⇒ up to 27 rows; two ⇒ up to 9; etc.)
 - If no ground-truth columns are supplied, `score.csv` is skipped entirely.
-- Schema (only columns for graded items; values ∈ {Hit, Mismatch, Unknown}):
+- Schema (only columns for graded fields; values ∈ {Hit, Mismatch, Unknown}):
 
 ```txt
 license_name,license_code_url,copyright,Count
@@ -416,7 +416,7 @@ GPT deployment ever appears.
 ### Main `results.csv` column order — [LOCKED]
 
 `results_{model_short}_{n}.csv` = input + `inferred_*` + `is_eq_*`, ordered so
-each item's **ground-truth → inferred → verdict** triplet sits together
+each field's **ground-truth → inferred → verdict** triplet sits together
 (reads across three adjacent columns in Excel):
 
 ```txt
@@ -427,10 +427,10 @@ copyright,         inferred_copyright,         is_eq_copyright
 ```
 
 - **Fixed leading columns:** `component_name`, `purl`.
-- **Per-item triplet** (one block per enrichment item): the ground-truth
+- **Per-field triplet** (one block per enrichment field): the ground-truth
 column (only if supplied) → the `inferred_*` column (always) → the `is_eq_*`
-column (only if that item's ground-truth was supplied).
-- **Degradation:** no ground truth for an item ⇒ that item collapses to just
+column (only if that field's ground-truth was supplied).
+- **Degradation:** no ground truth for a field ⇒ that field collapses to just
 its `inferred_*` column (no GT column, no `is_eq_*`). Non-audit run (no GT at
 all) ⇒ only `component_name, purl, inferred_license_name,
 inferred_license_code_url, inferred_copyright`.

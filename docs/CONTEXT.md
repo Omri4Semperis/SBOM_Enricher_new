@@ -23,9 +23,9 @@ copyright) for a component. The product of a run.
 **Enrichment Field**:
 One of the three inferred outputs of enrichment — license name, license-file
 URL (with its downloaded file), or copyright. Collectively "the enrichment
-fields" (or just "fields" where the context is clear).
-_Avoid_: element, item — for this meaning. (The `GT_ITEMS` identifier in code
-is legacy and left unchanged; renaming it is churn with no behavior change.)
+fields" (or just "fields" where the context is clear). In code the locked
+order of ground-truth field names is `GT_FIELDS`.
+_Avoid_: element, item — for this meaning.
 
 **Inferred License Name**:
 The license associated with a component, e.g. `MIT`, `GPL-3.0`.
@@ -52,9 +52,9 @@ The TRUE/FALSE verdict that an inferred value matches its Ground Truth,
 recorded in an `is_eq_*` column.
 
 **Scoring Outcome**:
-The grade for one inferred item against Ground Truth: **hit** (matches),
-**mismatch** (inferred a wrong value), or **unknown** (didn't know, didn't
-guess wrong).
+The grade for one inferred enrichment field against Ground Truth: **hit**
+(matches), **mismatch** (inferred a wrong value), or **unknown** (didn't
+know, didn't guess wrong).
 
 **Story**:
 A plain-text, human-readable narrative of everything done to enrich one

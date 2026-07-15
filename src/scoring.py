@@ -6,8 +6,8 @@ import csv
 from collections import Counter
 from pathlib import Path
 
-# Ground-truth column name → results is_eq_* field / grade key
-GT_ITEMS = ("license_name", "license_code_url", "copyright")
+# Ground-truth column names in locked enrichment-field order
+GT_FIELDS = ("license_name", "license_code_url", "copyright")
 
 _INFERRED = {
     "license_name": "inferred_license_name",
@@ -34,7 +34,7 @@ def grade_row(
     result,
     gt_columns: list[str] | tuple[str, ...],
 ) -> dict[str, str]:
-    """Return {gt_col: Hit|Mismatch|Unknown} for each graded item on this result."""
+    """Return {gt_col: Hit|Mismatch|Unknown} for each graded field on this result."""
     grades: dict[str, str] = {}
     for gt in gt_columns:
         if gt not in _INFERRED:
@@ -50,7 +50,7 @@ def tally_grades(
     gt_columns: list[str] | tuple[str, ...],
 ) -> list[dict[str, str]]:
     """Collapse per-row grade dicts into score.csv rows (Count > 0 only)."""
-    cols = [c for c in GT_ITEMS if c in gt_columns]
+    cols = [c for c in GT_FIELDS if c in gt_columns]
     if not cols:
         return []
     counter: Counter[tuple[str, ...]] = Counter()
@@ -71,7 +71,7 @@ def write_score_csv(
     gt_columns: list[str] | tuple[str, ...],
 ) -> Path | None:
     """Write score.csv; return path, or None if no GT columns."""
-    cols = [c for c in GT_ITEMS if c in gt_columns]
+    cols = [c for c in GT_FIELDS if c in gt_columns]
     if not cols:
         return None
     graded = [getattr(r, "grades", None) or grade_row(r, cols) for r in results]

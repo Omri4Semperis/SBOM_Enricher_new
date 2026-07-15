@@ -1,5 +1,7 @@
 # HANDOFF — accuracy levers, deferred until a corrected-input run exists
 
+Consumed: 2026-07-15
+
 ## Focus
 
 User directive (verbatim): "the input file of this run wasn't accurate —
@@ -36,28 +38,6 @@ scores the *same* enrichment against correct GT.
   download 6%; worker efficiency ~65% (19.6x effective of 30). 73/380
   downloads failed; copyright Unknown 158/380 (42%) — largely downstream of
   those failures.
-
-## Terminology — remaining alignment
-
-Canonical: **field / enrichment field**. Prose avoids "element" and "item"
-for this meaning. `CONTEXT.md` glossary entry exists; live docs/code still
-drift.
-
-### Worth aligning
-
-| Where | What it says today |
-|---|---|
-| `docs/CONTEXT.md` itself | **Scoring Outcome** still says “one inferred **item**” — internal contradiction with the new glossary entry |
-| `docs/DECISIONS.md` | Heavy: “inference item”, “graded items”, “per-item triplet”, “enrichment item” — ~10 hits in Scoring / results-CSV sections |
-| `src/scoring.py` | Identifier `GT_ITEMS` + docstring “graded item” |
-| `src/results_csv.py` | Docstring “locked item order” |
-| `src/summary.py` | Comment “GT item” |
-
-### Leave alone
-
-- `docs/plans/archive/v2-enricher/*` — historical record; rewriting would falsify the archive.
-- `dict.items()`, checklist “Entry/Validation/Exit item”, unrelated “array elements” — not this meaning.
-- Renaming `GT_ITEMS` → `GT_FIELDS` is optional churn (tests/imports). Prose/docs can say “field” while the identifier stays until someone wants the rename.
 
 ## Speed work — decided: nothing to build
 
