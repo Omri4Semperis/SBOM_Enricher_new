@@ -64,32 +64,21 @@ def _npm_author_copyright(purl: str) -> str | None:
     package_name = _npm_package_name(purl)
     if not package_name:
         return None
-    cleaned = purl.strip()
-    remainder = cleaned[len("pkg:npm/") :].split("?", 1)[0].split("#", 1)[0]
-    _name_part, _, version = remainder.rpartition("@")
-    version = version.strip()
-
-    urls = []
-    if version:
-        urls.append(f"{_NPM_REGISTRY}/{package_name}/{version}")
-    urls.append(f"{_NPM_REGISTRY}/{package_name}/latest")
-
-    for url in urls:
-        try:
-            resp = requests.get(url, timeout=_FETCH_TIMEOUT_S)
-        except requests.RequestException:
-            continue
-        if resp.status_code != 200:
-            continue
-        try:
-            metadata = resp.json()
-        except ValueError:
-            continue
-        if not isinstance(metadata, dict):
-            continue
-        name = _author_name_from_registry(metadata)
-        if name and not _is_placeholder_copyright(name):
-            return f"Copyright (c) {name}"
+    try:
+        resp = requests.get(f"{_NPM_REGISTRY}/{package_name}", timeout=_FETCH_TIMEOUT_S)
+    except requests.RequestException:
+        return None
+    if resp.status_code != 200:
+        return None
+    try:
+        metadata = resp.json()
+    except ValueError:
+        return None
+    if not isinstance(metadata, dict):
+        return None
+    name = _author_name_from_registry(metadata)
+    if name and not _is_placeholder_copyright(name):
+        return f"Copyright (c) {name}"
     return None
 
 
