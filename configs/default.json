@@ -1,9 +1,9 @@
 {
-    "input_file_path": "input/tiny 10.csv",
+    "input_file_path": "input/GT_380.csv",
     "output_base_path": "runs",
     "run_name": null,
     "model": "claude-opus-4-8",
-    "workers": 20,
+    "workers": 30,
     "cache_read": null,
     "cache_write": "caches"
 }
