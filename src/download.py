@@ -117,6 +117,7 @@ class DownloadResult:
     error: str = ""
     original_url: str = ""
     attempts: list[str] = field(default_factory=list)
+    fail_kind: str = ""
 
     @property
     def ok(self) -> bool:
@@ -178,15 +179,17 @@ def _write_license(dest_dir: Path, slug: str, ext: str, body: bytes) -> Path:
     return flat
 
 
-async def _try_one(url: str, dest_dir: Path, slug: str, attempts: list[str]) -> Path | None:
-    """Fetch one URL; return saved path on success, None if this candidate is done."""
+async def _try_one(
+    url: str, dest_dir: Path, slug: str, attempts: list[str]
+) -> tuple[Path | None, str]:
+    """Fetch one URL; return (saved path, "") on success, else (None, fail_kind)."""
     rewritten = rewrite_viewer_to_raw(url)
     if rewritten != url:
         attempts.append(f"rewrite {url} -> {rewritten}")
 
     if is_generic_template(rewritten):
         attempts.append(f"reject template: {rewritten}")
-        return None
+        return None, "template"
 
     try:
         body, content_type = await with_retries(
@@ -195,16 +198,18 @@ async def _try_one(url: str, dest_dir: Path, slug: str, attempts: list[str]) -> 
         )
     except Exception as exc:
         attempts.append(f"fail {rewritten}: {exc}")
-        return None
+        message = str(exc)
+        kind = "network" if message.startswith(("network:", "timeout:")) else "http_error"
+        return None, kind
 
     if looks_like_html(body, content_type):
         attempts.append(f"reject html: {rewritten}")
-        return None
+        return None, "html"
 
     ext = _ext_for(rewritten, content_type)
     path = _write_license(dest_dir, slug, ext, body)
     attempts.append(f"ok {rewritten} -> {path.name}")
-    return path
+    return path, ""
 
 
 async def fetch_license_file(
@@ -221,9 +226,12 @@ async def fetch_license_file(
     original = (claude_url or "").strip()
     result = DownloadResult(original_url=original)
     attempts = result.attempts
+    fail_kind = ""
 
     if original:
-        path = await _try_one(original, dest_dir, slug, attempts)
+        path, kind = await _try_one(original, dest_dir, slug, attempts)
+        if kind:
+            fail_kind = kind
         if path is not None:
             # Last attempt line names the rewritten URL; recover it.
             resolved = rewrite_viewer_to_raw(original)
@@ -240,11 +248,14 @@ async def fetch_license_file(
         attempts.append("non-npm purl: skip npm fallback")
 
     for candidate in candidates:
-        path = await _try_one(candidate, dest_dir, slug, attempts)
+        path, kind = await _try_one(candidate, dest_dir, slug, attempts)
+        if kind:
+            fail_kind = kind
         if path is not None:
             result.resolved_url = rewrite_viewer_to_raw(candidate)
             result.saved_path = path
             return result
 
     result.error = "download_failed"
+    result.fail_kind = fail_kind
     return result

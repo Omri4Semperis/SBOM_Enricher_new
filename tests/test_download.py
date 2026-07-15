@@ -184,6 +184,35 @@ def test_fetch_empty_purl_skips_npm(tmp_path, monkeypatch):
     assert not any("unpkg.com" in a for a in result.attempts)
 
 
+def test_fetch_html_sets_fail_kind(tmp_path, monkeypatch):
+    def fake_get(url, timeout=None):
+        return _ok_response(
+            b"<!DOCTYPE html><html></html>", "text/html; charset=utf-8"
+        )
+
+    monkeypatch.setattr("download.requests.get", fake_get)
+    (tmp_path / "per_component" / "x@1").mkdir(parents=True)
+
+    result = asyncio.run(
+        fetch_license_file("https://example.com/page", "", tmp_path, "x@1")
+    )
+    assert not result.ok
+    assert result.fail_kind == "html"
+
+
+def test_fetch_http_error_fail_kind(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "download.requests.get", lambda url, timeout=None: _status_response(404)
+    )
+    (tmp_path / "per_component" / "x@1").mkdir(parents=True)
+
+    result = asyncio.run(
+        fetch_license_file("https://example.com/gone", "", tmp_path, "x@1")
+    )
+    assert not result.ok
+    assert result.fail_kind == "http_error"
+
+
 def test_fetch_rejects_generic_template(tmp_path, monkeypatch):
     called = []
 
