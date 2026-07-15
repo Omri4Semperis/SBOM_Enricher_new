@@ -391,6 +391,49 @@ def test_resolve_denylist_stray_holder_web(monkeypatch):
     assert out["reasoning"] == "stray upstream holder"
 
 
+def test_resolve_keeps_go_authors_for_golang_purl(monkeypatch):
+    import copyright as copyright_mod
+
+    async def fake_extract(text):
+        return {
+            "copyright": "Copyright (c) 2019 The Go Authors",
+            "reasoning": "from file",
+        }, CallMeta()
+
+    monkeypatch.setattr(copyright_mod, "extract_copyright", fake_extract)
+
+    out, _meta = asyncio.run(
+        copyright_mod.resolve_copyright(
+            MIT_LICENSE, "pkg:golang/golang.org/x/text@1", "text", "1", "claude-haiku-4-5"
+        )
+    )
+    assert out["copyright"] == "Copyright (c) 2019 The Go Authors"
+
+
+def test_resolve_rejects_go_authors_for_non_go_purl(monkeypatch):
+    import copyright as copyright_mod
+
+    async def fake_extract(text):
+        return {
+            "copyright": "Copyright (c) 2019 The Go Authors",
+            "reasoning": "from file",
+        }, CallMeta()
+
+    async def fake_web(*_a, **_k):
+        return copyright_mod._unknown("no notice"), CallMeta()
+
+    monkeypatch.setattr(copyright_mod, "extract_copyright", fake_extract)
+    monkeypatch.setattr(copyright_mod, "_npm_author_copyright", lambda _p: None)
+    monkeypatch.setattr(copyright_mod, "infer_copyright_web", fake_web)
+
+    out, _meta = asyncio.run(
+        copyright_mod.resolve_copyright(
+            MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
+        )
+    )
+    assert out["copyright"] == "UNKNOWN"
+
+
 def test_copyright_prompt_has_year_and_directional_rules():
     from prompts import equality_copyright_prompts
 
