@@ -1,5 +1,5 @@
 {
-    "input_file_path": "input/GT_380.csv",
+    "input_file_path": "input/GT_382.csv",
     "output_base_path": "runs",
     "run_name": null,
     "model": "claude-opus-4-8",
