@@ -40,6 +40,10 @@ class ComponentResult:
     eq_copyright_reason: str = ""
     grades: dict[str, str] = field(default_factory=dict)
     license_meta: CallMeta = field(default_factory=CallMeta)
+    copyright_meta: CallMeta = field(default_factory=CallMeta)
+    eq_license_name_meta: CallMeta = field(default_factory=CallMeta)
+    eq_license_code_url_meta: CallMeta = field(default_factory=CallMeta)
+    eq_copyright_meta: CallMeta = field(default_factory=CallMeta)
 
 
 def story_path(run_dir: Path, slug: str) -> Path:
@@ -122,12 +126,17 @@ async def process_component(
         text = result.license_file_path.read_text(encoding="utf-8", errors="replace")
         t2 = time.perf_counter()
         cr = await extract_copyright(text)
+        # Fakes may still return a plain dict; real extractor returns (dict, CallMeta).
+        if isinstance(cr, tuple):
+            data, result.copyright_meta = cr
+        else:
+            data = cr
         cr_elapsed = time.perf_counter() - t2
-        result.inferred_copyright = cr["copyright"]
+        result.inferred_copyright = data["copyright"]
         append_story(
             run_dir,
             comp.slug,
-            f"copyright: {cr['reasoning']} timing_s={cr_elapsed:.3f}",
+            f"copyright: {data['reasoning']} timing_s={cr_elapsed:.3f}",
         )
     else:
         append_story(run_dir, comp.slug, "copyright: skipped (no license file)")
@@ -156,6 +165,7 @@ async def apply_equality(
         )
         result.is_eq_license_name = eq.verdict
         result.eq_license_name_reason = eq.reason
+        result.eq_license_name_meta = eq.meta
         append_story(run_dir, slug, f"is_eq_license_name={eq.verdict} ({eq.reason})")
 
     if "license_code_url" in gt_columns:
@@ -168,6 +178,7 @@ async def apply_equality(
         )
         result.is_eq_license_code_url = eq.verdict
         result.eq_license_code_url_reason = eq.reason
+        result.eq_license_code_url_meta = eq.meta
         append_story(
             run_dir, slug, f"is_eq_license_code_url={eq.verdict} ({eq.reason})"
         )
@@ -180,6 +191,7 @@ async def apply_equality(
         )
         result.is_eq_copyright = eq.verdict
         result.eq_copyright_reason = eq.reason
+        result.eq_copyright_meta = eq.meta
         append_story(run_dir, slug, f"is_eq_copyright={eq.verdict} ({eq.reason})")
 
     result.grades = grade_row(result, gt_columns)

@@ -159,3 +159,40 @@ def test_extended_row_numeric_license_cost(tmp_path):
     assert rows[0]["inferencer_cost_usd"] != "unknown"
     assert rows[0]["inferencer_raw_response"]
     assert "total_cost_usd" in rows[0]["inferencer_raw_response"]
+
+
+def test_extended_row_numeric_copyright_and_eq_costs(tmp_path):
+    run_dir = tmp_path / "run"
+    (run_dir / "per_component" / "pkg@1").mkdir(parents=True)
+    path = tmp_path / "out_extended.csv"
+    cr_meta = CallMeta()
+    cr_meta.add_call(cost_usd=0.0015, raw='{"copyright":"Copyright (c) A"}')
+    judge_meta = CallMeta()
+    judge_meta.add_call(cost_usd=0.0025, raw='{"verdict":"TRUE"}')
+    result = ComponentResult(
+        component=Component(
+            component_name="pkg@1",
+            purl="pkg:npm/pkg@1",
+            lib_name="pkg",
+            version="1",
+            slug="pkg@1",
+            extras={"license_name": "MIT", "copyright": "Copyright (c) A"},
+        ),
+        inferred_license_name="MIT",
+        inferred_license_code_url="https://example.com/LICENSE",
+        inferred_copyright="Copyright (c) A",
+        copyright_meta=cr_meta,
+        is_eq_license_name="TRUE",
+        eq_license_name_reason="normalized",
+        is_eq_copyright="TRUE",
+        eq_copyright_reason="judge:same holder",
+        eq_copyright_meta=judge_meta,
+    )
+    with ExtendedWriter(path, ["license_name", "copyright"], run_dir) as w:
+        w.write_row(result)
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+    assert rows[0]["copyright_cost_usd"] == "0.001500"
+    assert rows[0]["copyright_raw_response"]
+    assert rows[0]["eq_copyright_cost_usd"] == "0.002500"
+    assert rows[0]["eq_license_name_cost_usd"] == ""

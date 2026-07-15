@@ -177,31 +177,35 @@ class ExtendedWriter:
                     str(result.license_file_path) if result.license_file_path else ""
                 ),
                 "license_file_original_url": result.original_license_url,
-                "copyright_raw_response": "",
+                "copyright_raw_response": (
+                    ""
+                    if result.from_cache
+                    else "\n---\n".join(result.copyright_meta.raws)
+                ),
                 "copyright_reasoning": reasons.get("copyright", ""),
                 "copyright_elapsed_s": f"{cr_s:.3f}" if cr_s is not None else "",
                 "copyright_cost_usd": (
-                    UNKNOWN_COST
-                    if (not result.from_cache and result.license_file_path is not None)
-                    else ""
+                    ""
+                    if result.from_cache or result.copyright_meta.billable_calls == 0
+                    else result.copyright_meta.cost_cell()
                 ),
                 "eq_license_name_reason": result.eq_license_name_reason,
                 "eq_license_code_url_reason": result.eq_license_code_url_reason,
                 "eq_copyright_reason": result.eq_copyright_reason,
                 "eq_license_name_cost_usd": (
-                    UNKNOWN_COST
-                    if result.eq_license_name_reason.startswith("judge:")
-                    else ""
+                    ""
+                    if result.eq_license_name_meta.billable_calls == 0
+                    else result.eq_license_name_meta.cost_cell()
                 ),
                 "eq_license_code_url_cost_usd": (
-                    UNKNOWN_COST
-                    if result.eq_license_code_url_reason.startswith("judge:")
-                    else ""
+                    ""
+                    if result.eq_license_code_url_meta.billable_calls == 0
+                    else result.eq_license_code_url_meta.cost_cell()
                 ),
                 "eq_copyright_cost_usd": (
-                    UNKNOWN_COST
-                    if result.eq_copyright_reason.startswith("judge:")
-                    else ""
+                    ""
+                    if result.eq_copyright_meta.billable_calls == 0
+                    else result.eq_copyright_meta.cost_cell()
                 ),
                 "grades": json.dumps(result.grades, sort_keys=True)
                 if result.grades
