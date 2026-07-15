@@ -70,7 +70,7 @@ captured at phase start. Updated is the date of the last status change. -->
 | -                                                                       | -                                                                   | -          | -       | -        | -       |
 | [P1: claude_cost_capture](./P1_claude_cost_capture.md)                  | `CallMeta` accumulator + Claude cost/raw/tokens → extended CSV       | -          | done | 27c1557 | 2026-07-15 |
 | [P2: gpt41_cost_capture](./P2_gpt41_cost_capture.md)                    | GPT-4.1 cost/raw for copyright + equality judges → extended CSV      | P1         | done | 462e80a | 2026-07-15 |
-| [P3: copyright_fallback_chain](./P3_copyright_fallback_chain.md)        | npm author → Claude web copyright fallback, cost into copyright bucket | P2       | in progress | ef673b0 | 2026-07-15 |
+| [P3: copyright_fallback_chain](./P3_copyright_fallback_chain.md)        | npm author → Claude web copyright fallback, cost into copyright bucket | P2       | done | ef673b0 | 2026-07-15 |
 | [P4: summary_run_costs_and_schema](./P4_summary_run_costs_and_schema.md)| Real `summary.json` cost rollup + `run_info` grouping + drop saved_by_cache | P3   | pending |          |         |
 | [P5: cached_historical_cost](./P5_cached_historical_cost.md)            | Persist Cached Historical Cost in cache entries (provenance only)    | P4         | pending |          |         |
 | [P6: docs_and_live_validation](./P6_docs_and_live_validation.md)        | DECISIONS/BACKLOG/archive doc fixes + live 2-call cost validation    | P5         | pending |          |         |
@@ -134,7 +134,13 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   inference (billable, cost added into `copyright_meta`) → UNKNOWN, without
   overwriting an earlier success. The Claude web call reuses P1's Claude
   metadata plumbing. `copyright_meta` may now hold >1 billable call.
-- **Notes:**
+- **Notes:** Done. `resolve_copyright(license_text, purl, lib_name, version,
+  model) -> (dict, CallMeta)` chains file → npm author → `infer_copyright_web`.
+  `copyright_meta` may carry file GPT-4.1 + web Claude calls (npm adds none).
+  Suite: 113 passed. Deviations: touched `tests/test_pipeline.py` +
+  `tests/test_summary.py` (rename extract→resolve patches; no-file now
+  resolves). Review shrunk npm GET to single `/{name}`. Purl-parse dup left
+  per doc (Incoming for planner only if needed).
 - **Incoming comments:**
 
 ### P4: summary_run_costs_and_schema

@@ -186,14 +186,33 @@ phase's doc.
    signature and that `copyright_meta` may now carry multiple billable calls.
 4. Record the full outcome in this doc under an **Outcome** heading:
 
-```txt
 ## Outcome
+
 Objective: file → npm author → Claude web copyright chain with cost capture
-HEAD: {git rev-parse --short HEAD} | Branch: {git branch --show-current}
-Files changed: {git diff --name-only <baseline>..HEAD output}
-Commands run: {the Verify/gate commands and their observed results}
-Test status: {suite command + observed result}
-Assumptions: {numbered, or "none"}
-Open questions: {numbered, or "none"}
+HEAD: c93ae10 | Branch: master
+Files changed:
+- docs/plans/cost-and-copyright-observability/PLAN.md
+- src/claude_client.py
+- src/copyright.py
+- src/pipeline.py
+- src/prompts.py
+- tests/test_claude_client.py
+- tests/test_copyright.py
+- tests/test_pipeline.py
+- tests/test_summary.py
+Commands run:
+- Entry: `pytest -q` → 103 passed; `git status --porcelain` empty; baseline ef673b0
+- T1 Verify: `pytest tests/test_claude_client.py -q` → 8 passed
+- T2 Verify: `pytest tests/test_copyright.py -q` → 15 passed
+- T3 Verify: `pytest tests/test_pipeline.py -q` → 9 passed
+- Validation gate: `pytest -q` → 113 passed (before and after npm URL shrink)
+- Fresh review (subagent on `git diff ef673b0..HEAD`): doc compliance pass; must-fix none; lens yagni on version/latest URL ladder → fixed to single `/{name}` GET; purl-parse dup left per doc
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 113 passed
+Assumptions: none
+Open questions: none
 Next action: P4 per PLAN.md's table
-```
+
+### Deviations
+
+1. Touched `tests/test_pipeline.py` and `tests/test_summary.py` (not on Touch list) so suite stays green after renaming pipeline hook `extract_copyright` → `resolve_copyright` and changing no-file behavior to still call the chain.
+2. Review lens: local npm purl-parse duplication of `download.npm_candidates` — left as ordered by this doc.
