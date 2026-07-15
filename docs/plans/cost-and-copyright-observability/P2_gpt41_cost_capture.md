@@ -196,3 +196,48 @@ Assumptions: {numbered, or "none"}
 Open questions: {numbered, or "none"}
 Next action: P3 per PLAN.md's table
 ```
+
+## Outcome
+
+Objective: capture GPT-4.1 copyright + equality cost/raw on results + CSV
+
+HEAD: 1ceda36 | Branch: master
+
+Files changed:
+- docs/plans/cost-and-copyright-observability/PLAN.md
+- src/copyright.py
+- src/equality.py
+- src/gpt41_client.py
+- src/pipeline.py
+- src/results_csv.py
+- tests/test_copyright.py
+- tests/test_equality.py
+- tests/test_results_csv.py
+
+Commands run:
+- Entry: `pytest -q` → 100 passed; `git status --porcelain` → empty; baseline `462e80a`
+- T1 Verify: `pytest tests/test_copyright.py -q` → 6 passed
+- T2 Verify: `pytest tests/test_equality.py tests/test_copyright.py -q` → 15 passed
+- T3 Verify: `pytest tests/test_results_csv.py tests/test_pipeline.py -q` → 17 passed
+- Validation gate: `pytest -q` → 102 then 103 passed after review fix
+- Fresh review: Task subagent on `git diff 462e80a..HEAD` vs this doc + ponytail lens
+
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 103 passed
+
+Assumptions:
+1. Pipeline keeps plain-dict `extract_copyright` fake tolerance (same as P1 license), because `tests/test_pipeline.py` / `tests/test_summary.py` are outside Touch.
+2. Attaching accumulated `CallMeta` as `exc.meta` on `complete_json` raise is the minimal way to give copyright fail-closed the partial meta the capsule requires.
+
+Open questions: none
+
+Deviations / review notes:
+1. After successful `create`, `add_call` runs even when `choices` is empty/malformed (review must-fix) — then `ParseFailure`.
+2. Over-engineering note (not fixed — lens must not override Touch/P1 pattern): dual tuple|dict unpack in `process_component` for stale fakes; planner may later update fakes and unpack unconditionally.
+
+Signatures for later phases:
+- `Gpt41Client.complete_json(...) -> tuple[dict, CallMeta]` (on raise: `exc.meta`)
+- `extract_copyright(...) -> tuple[dict, CallMeta]`
+- `EqResult(verdict, reason, meta=CallMeta())`
+- `ComponentResult`: `license_meta`, `copyright_meta`, `eq_license_name_meta`, `eq_license_code_url_meta`, `eq_copyright_meta`
+
+Next action: P3 per PLAN.md's table
