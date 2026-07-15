@@ -69,7 +69,7 @@ and calls `copyright._is_stray_holder`, whose signature P2 changes.
 | -                                                              | -                                                  | -          | -       | -        | -       |
 | [P1: harden_download_path](./P1_harden_download_path.md)       | B1+S2+S3+N1: gate host, offload, normalize, log    | -          | done | 1d99bae | 2026-07-16 |
 | [P2: association_aware_holder](./P2_association_aware_holder.md) | S1: association-aware stray-holder guard + ADR 0007 | -          | done | 7aa1ef9 | 2026-07-16 |
-| [P3: honest_rescore_and_doc](./P3_honest_rescore_and_doc.md)   | S4: guard-count-only re-score + doc correction     | P2         | pending |          |         |
+| [P3: honest_rescore_and_doc](./P3_honest_rescore_and_doc.md)   | S4: guard-count-only re-score + doc correction     | P2         | blocked | cb10194 | 2026-07-16 |
 
 ## Test commands
 
@@ -122,7 +122,23 @@ to this; the count must never drop.
 ### P3: honest_rescore_and_doc
 
 - **For other phases:** terminal phase; exposes nothing.
-- **Notes:**
+- **Notes:** Blocked. T1 done and committed (`rescore.py`'s
+  `adjusted_copyright_grade` replaced with `copyright_guard_triggered`,
+  guard-trigger count only, `_is_stray_holder` updated to P2's signature) —
+  compiles clean, suite still 136 passed, unaffected by the blocker below. T2
+  (doc correction) drafted but **uncommitted**: the phase doc's Exit
+  criterion `Select-String ... -Pattern "move to .Unknown." → no matches`
+  also matches a pre-existing, unrelated, true sentence in the doc's
+  out-of-scope `license_code_url` section (line ~55: "rows that move to
+  `Unknown`" — real blank→Unknown grading, nothing to do with S4). The doc's
+  own Anti-goals forbid touching that section, so the literal grep can never
+  pass without violating them — a planning bug in the Exit criteria's regex,
+  not a real remaining false claim (the copyright section's false "20 →
+  Unknown" claim is already corrected in the uncommitted draft). User chose
+  to block rather than have the executor reword the protected section or
+  self-judge the criterion satisfied. Needs the phase doc's Exit
+  criteria/T2 Verify command amended (e.g. scope the grep to the `copyright`
+  section, or accept an unrelated match) before this phase can complete.
 - **Incoming comments:**
 
 ## On completion

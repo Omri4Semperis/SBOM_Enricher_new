@@ -156,6 +156,53 @@ Do not, even if it seems better:
 - Do not edit `src/copyright.py` to change the signature back for convenience —
   match P2's signature.
 
+## Blocked (2026-07-16)
+
+T1 is done and committed (commit `2d84b29`): `rescore.py`'s
+`adjusted_copyright_grade` replaced with `copyright_guard_triggered(row)` —
+detects the guard trip via `_is_stray_holder(inferred, purl, lib_name)` (P2's
+signature; `lib_name` from `input_csv.parse_component_name(row["component_name"])`)
+without simulating a grade. `main()`'s copyright section now prints only the
+guard-trigger count plus an explicit note that production continues through
+npm + web fallbacks. `py_compile` green, full suite still 136 passed.
+
+T2 is drafted in the working tree (uncommitted) against
+`docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md`: the false
+"20 of the 78 raw-Mismatch rows ... → move to `Unknown`" claim and the
+matching "Comparison to root-cause predictions" row are rewritten to state
+the guard is reject-only and does not by itself resolve a grade, without
+inventing a new count (the frozen run dir is absent from this checkout).
+
+**Why blocked:** this phase's Exit criteria (and T2's own Verify) run:
+
+```
+Select-String -Path docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md -Pattern "move to .Unknown." → no matches
+```
+
+This still matches one line — `~55`, in the `license_code_url` section:
+"The other 70 raw-Mismatch rows that move to `Unknown` are exactly the
+`inferred_url_download_failed` rows with a **blank** inferred URL..." This
+sentence is pre-existing, true, unrelated to S4 (it's P1's real blank→Unknown
+grading rule, not a simulated/fabricated grade), and outside this phase's
+scope. But this doc's own Anti-goals say: "Do not touch the `license_code_url`
+... sections of either file; only the copyright claim is in scope" — so the
+literal grep can never return zero matches without violating that explicit
+anti-goal. This is a planning bug in the Exit criteria's regex (too broad —
+it wasn't written expecting a second, legitimate hit elsewhere in the file),
+not evidence of a remaining false claim.
+
+Given the choice between (a) treating the criterion as satisfied in spirit,
+(b) rewording the protected line anyway, or (c) blocking, the user chose to
+block — the phase doc itself needs the Exit criteria / T2 Verify command
+amended (e.g. scope the `Select-String` to the `## copyright` section only,
+or otherwise account for the legitimate license_code_url match) before this
+phase can be re-attempted and completed.
+
+**Working tree state:** T1 committed; T2's doc edits are uncommitted local
+changes (not reverted) so the drafted correction is available once the Exit
+criteria is fixed — see `git diff` on
+`docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md`.
+
 ## If blocked
 
 Set this phase's Status to `blocked` in `PLAN.md`'s table (fill Baseline and
