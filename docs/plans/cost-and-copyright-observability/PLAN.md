@@ -72,7 +72,7 @@ captured at phase start. Updated is the date of the last status change. -->
 | [P2: gpt41_cost_capture](./P2_gpt41_cost_capture.md)                    | GPT-4.1 cost/raw for copyright + equality judges → extended CSV      | P1         | done | 462e80a | 2026-07-15 |
 | [P3: copyright_fallback_chain](./P3_copyright_fallback_chain.md)        | npm author → Claude web copyright fallback, cost into copyright bucket | P2       | done | ef673b0 | 2026-07-15 |
 | [P4: summary_run_costs_and_schema](./P4_summary_run_costs_and_schema.md)| Real `summary.json` cost rollup + `run_info` grouping + drop saved_by_cache | P3   | done | b6b5394 | 2026-07-15 |
-| [P5: cached_historical_cost](./P5_cached_historical_cost.md)            | Persist Cached Historical Cost in cache entries (provenance only)    | P4         | pending |          |         |
+| [P5: cached_historical_cost](./P5_cached_historical_cost.md)            | Persist Cached Historical Cost in cache entries (provenance only)    | P4         | done | 81e630d | 2026-07-15 |
 | [P6: docs_and_live_validation](./P6_docs_and_live_validation.md)        | DECISIONS/BACKLOG/archive doc fixes + live 2-call cost validation    | P5         | pending |          |         |
 
 Filenames use `P{N}_{snake_case_title}.md`. "Depends on" lists phase ids or "-".
@@ -164,7 +164,16 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   measured enrichment cost (license + copyright metas) at cache-write time, and
   exposes it on `CachedRecord`. It is never added to any current-run total.
   Cache hit stays `$0` Run Cost.
-- **Notes:**
+- **Notes:** Done. Added `cached_historical_cost_usd` to `cache.csv`'s
+  `_COLUMNS` (6th column); `write_cache` fills it from
+  `format_cost(combine([license_meta, copyright_meta]).total_usd())`.
+  `CachedRecord.cached_historical_cost: str` (default `""`) exposes it,
+  populated in `read_cache`. Old indexes without the column still hit
+  (`""`). Suite: 119 passed. Review: lean, no findings. Deviation: an
+  unrelated commit (`9b7a271`, doc cosmetics on P4's own doc) landed on the
+  branch from outside this session between baseline capture and this
+  phase's commit — not authored by this phase, doesn't touch this phase's
+  Touch list; noted so the diff range doesn't read as a scope violation.
 - **Incoming comments:**
 
 ### P6: docs_and_live_validation

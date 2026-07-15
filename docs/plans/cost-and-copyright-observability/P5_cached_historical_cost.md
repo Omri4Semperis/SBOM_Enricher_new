@@ -157,11 +157,25 @@ phase's doc.
 ```txt
 ## Outcome
 Objective: persist Cached Historical Cost as cache provenance
-HEAD: {git rev-parse --short HEAD} | Branch: {git branch --show-current}
-Files changed: {git diff --name-only <baseline>..HEAD output}
-Commands run: {the Verify/gate commands and their observed results}
-Test status: {suite command + observed result}
-Assumptions: {numbered, or "none"}
-Open questions: {numbered, or "none"}
+HEAD: a9bb85f | Branch: master
+Files changed (this phase's own commit, `a9bb85f`):
+- src/cache.py
+- tests/test_cache.py
+Commands run:
+- `.\.venv\Scripts\python.exe -m pytest tests/test_cache.py -q` → exit 0, 9 passed (T1+T2 Verify)
+- `.\.venv\Scripts\python.exe -m pytest -q` → exit 0, 119 passed (Validation gate + Exit criteria)
+- Fresh-context subagent review (diff `81e630d..HEAD` + this doc + ponytail-review lens) → PASS,
+  "Lean already. Ship." One note: the diff range also contained an unrelated commit `9b7a271`
+  ("markdown linting cosmetics for P4", touching only `P4_summary_run_costs_and_schema.md`) that
+  landed on the branch from outside this session between baseline capture and this phase's own
+  commit. Confirmed via `git show a9bb85f` that this phase's actual commit touches only
+  `src/cache.py` and `tests/test_cache.py` — no scope violation.
+Test status: full suite green, 119 passed (baseline entry was 115; +4 new tests in test_cache.py,
+  net +4 since T1/T2 tests were added and verified together).
+Assumptions:
+1. `ComponentResult.license_meta`/`copyright_meta` always default to an empty (known, $0) `CallMeta`
+   via `field(default_factory=CallMeta)` (confirmed in `src/pipeline.py`), so `write_cache`'s
+   `getattr(..., CallMeta())` fallback is defensive-only and not exercised by any real caller today.
+Open questions: none
 Next action: P6 per PLAN.md's table
 ```
