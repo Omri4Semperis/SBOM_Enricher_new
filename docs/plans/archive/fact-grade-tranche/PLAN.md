@@ -1,5 +1,7 @@
 # Plan: fact-grade-first tranche
 
+COMPLETED 2026-07-15 — historical record, not current truth.
+
 **Live document.** Unlike the old design, this file is written to during
 execution. The executor of phase N may edit **only two files**: its own
 `P{N}_{...}.md` doc and this `PLAN.md`. It updates its row in the phase
@@ -65,7 +67,7 @@ code dependency is imposed between P1 and P2.
 | [P1: grading_honesty](./P1_grading_honesty.md)         | `Unscoreable` URL grade (GT-not-a-file) + blank inference → Unknown + docs | -          | done    | 330b0c4  | 2026-07-15 |
 | [P2: nuget_nuspec_fallback](./P2_nuget_nuspec_fallback.md) | NuGet nuspec → repo LICENSE file for the URL field                    | -          | done | 453f143  | 2026-07-15 |
 | [P3: copyright_honesty](./P3_copyright_honesty.md)     | Reject-only copyright denylist guard + judge copyright prompt-tightening | -          | done | 4b6ddb6 | 2026-07-15 |
-| [P4: offline_rescore_signoff](./P4_offline_rescore_signoff.md) | Offline re-score sign-off gate over the frozen run             | P1, P2, P3 | pending |          |         |
+| [P4: offline_rescore_signoff](./P4_offline_rescore_signoff.md) | Offline re-score sign-off gate over the frozen run             | P1, P2, P3 | done | eb39ef2  | 2026-07-15 |
 
 ## Test commands
 
@@ -146,7 +148,19 @@ code dependency is imposed between P1 and P2.
   GT content-type and NuGet fallbacks), writes a results doc to `docs/analysis/`,
   and migrates the accepted residual risks (DECISIONS branch I, #2–#5) to
   `docs/BACKLOG.md`. Requires P1, P2, P3 `done`.
-- **Notes:**
+- **Notes:** Done. `rescore.py` rewritten to import the real `grade_item`,
+  `looks_like_html`/`nuget_candidates`/`is_generic_template`/`rewrite_viewer_to_raw`,
+  `_is_stray_holder` (reimplemented `classify_*` policy deleted). Offline re-score
+  over the frozen run: URL 154 Mismatch → 63 `Unscoreable` / 70 `Unknown` / 21
+  Mismatch (Hit-rate 59.5%→71.3%, Unscoreable excluded per G2); copyright 78 →
+  20 stray-rejected to `Unknown` / 58; NuGet fallback 7/62 empty-URL rows resolve
+  live. Matches root-cause predictions (URL~64→63, cp~13→20, NuGet~32est→7
+  live-verified). Results doc + BACKLOG risks #5-#8 written. `pytest` 130 passed
+  (prod untouched). Fresh-context review: conformance PASS, no correctness bugs;
+  two findings fixed (GT probe now mirrors production's `is_generic_template`
+  short-circuit; bool return) — re-run gave identical counts. User also ran the
+  opt-in live 100-row run (`runs/20260715_205024_ClaudeOpu-4-8_100`):
+  `Unscoreable` 22×, blank→Unknown URL 19×, copyright→Unknown 8× in production.
 - **Incoming comments:**
 
 ## On completion

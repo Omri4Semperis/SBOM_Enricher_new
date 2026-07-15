@@ -197,3 +197,45 @@ Commands + Test status: {gate commands and observed results}
 Assumptions / Open questions: {numbered, or "none"}
 Next action: {next eligible phase per PLAN.md, or "plan complete"}
 ```
+
+## Outcome
+
+Objective: Offline sign-off gate — re-score the frozen run with the REAL P1-P3
+functions + bounded live probes, confirm predicted movements, promote to a
+results doc, migrate residual risks. | HEAD: a50e6bd | Branch: master
+
+Files changed (eb39ef2..a50e6bd):
+
+- `ad_hoc_scripts/analysis/rescore.py` — rewritten to import & call `grade_item`,
+  `looks_like_html`/`nuget_candidates`/`is_generic_template`/`rewrite_viewer_to_raw`,
+  `_is_stray_holder`; reimplemented `classify_*`/`holder_tokens` policy deleted.
+- `docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md` — new results doc.
+- `docs/BACKLOG.md` — accepted residual risks #5-#8 (DECISIONS branch I #2-#5).
+
+Commands + Test status:
+
+- `pytest -q` → **130 passed** (production code untouched — same as after P3).
+- `rescore.py` → exit 0. Movements: URL 154 Mismatch → 63 `Unscoreable` /
+  70 `Unknown` / 21 real Mismatch (Hit-rate 59.5% → 71.3%, Unscoreable excluded
+  from denominator per G2); copyright 78 Mismatch → 20 stray-rejected to
+  `Unknown` / 58 Mismatch; NuGet fallback 7/62 empty-URL rows now resolve live.
+- Confirmed vs root-cause predictions: URL→Unscoreable ~64 → **63**;
+  copyright→Unknown ~13 → **20**; NuGet ~32 est. → **7** live-verified.
+- Fresh-context review (readonly subagent, did not implement): spec conformance
+  **PASS**, no correctness-breaking bugs. Two findings fixed before close: the
+  GT probe now applies production's `is_generic_template` short-circuit before
+  the HTML sniff (faithfulness — failure mode #3), and the probe returns a bool
+  instead of an unused tri-state. Re-run after fix: identical counts (no GT URL
+  was on a generic-template host), pytest still 130.
+
+Assumptions / Open questions:
+
+1. Live probe counts are dated 2026-07-15; a re-run may shift them (GT host
+   content-type changes, NuGet repo metadata). Recorded as a caveat in the doc.
+2. The opt-in full re-run is not required by this phase, but the user ran one
+   during close-out (`runs/20260715_205024_ClaudeOpu-4-8_100`): `Unscoreable`
+   fired 22×, blank→Unknown URLs 19×, copyright→Unknown 8× in live production —
+   independent end-to-end confirmation the P1-P3 vocabulary works in a real run.
+
+Next action: plan complete — all four phases `done`. Trigger PLAN.md On
+completion (graduate durable decisions, stamp, archive).
