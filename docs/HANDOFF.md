@@ -1,5 +1,7 @@
 # HANDOFF — Build the implementation plan for the grilled suggestions
 
+Consumed: 2026-07-15 (plan created at `docs/plans/fact-grade-tranche/`; P1 done, now executing P2)
+
 - Objective: Turn the signed-off grilling decisions in `docs/DECISIONS.md` into a
   multi-phase implementation plan (via `complex-plan-create`), then implement.
   The grilling is complete; no design questions remain open.
