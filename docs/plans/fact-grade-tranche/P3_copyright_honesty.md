@@ -180,7 +180,45 @@ Set this phase's Status to `blocked` in `PLAN.md`'s table (fill Baseline and
 Updated), add a one-line reason to your Phase-notes block, then report to the
 user and stop. Do not guess, do not widen the file list.
 
-## On completion
+## Outcome
+
+Objective: reject-only stray-holder guard in `resolve_copyright` + copyright
+judge prompt tightening (year tolerance, directional "and others") | HEAD:
+6610504 | Branch: master
+
+Files changed: `src/copyright.py`, `src/prompts.py`, `tests/test_copyright.py`
+
+Commands + Test status:
+- `.\.venv\Scripts\python.exe -m pytest -q` → exit 0, `130 passed` (126 baseline
+  + 4 new)
+- Validation gate step 1 (full suite) → exit 0, `130 passed`
+- Validation gate step 2 (fresh-context subagent review of
+  `git diff 4b6ddb6..HEAD` against this doc + ponytail-review lens): **PASS**.
+  Spec conformance full match (guard placement, asymmetry, "do not touch" list
+  all respected); both named failure modes checked and absent; no
+  over-engineering findings (doc-mandated placement of the module-level
+  helper). One gap flagged: the web-inference stray-holder rejection path
+  (T1's second insertion point) had no dedicated test — only the file-path
+  case was covered. Fixed in-scope (`tests/test_copyright.py` is on this
+  phase's Touch list): added `test_resolve_denylist_stray_holder_web`,
+  re-ran full suite → `130 passed`.
+- `.\.venv\Scripts\python.exe -m pytest tests/test_copyright.py -k denylist -q`
+  → exit 0, `2 passed`
+- `.\.venv\Scripts\python.exe -m pytest tests/test_copyright.py -q` → exit 0,
+  `19 passed`
+- Opt-in live re-judge of the ~21 flagged copyright pairs from the frozen
+  run: **not run** — needs Azure creds; deferred to P4 (which already has the
+  frozen-run re-score as its subject).
+
+Assumptions / Open questions:
+1. The npm-author fallback step (`_npm_author_copyright`) was deliberately left
+   without a stray-holder check, per the doc's framing that the wrong holder
+   "can come from either the file extraction or the web inference" (not npm).
+   Consistent with the doc; noted here in case it's wrong.
+2. None else.
+
+Next action: P4 (offline_rescore_signoff) is now unblocked — P1, P2, P3 all
+`done`.
 
 1. Every Entry/Validation/Exit item passed — re-check, don't recall.
 2. In `PLAN.md`: set this phase's Status to `done`, fill Baseline (start hash)

@@ -64,7 +64,7 @@ code dependency is imposed between P1 and P2.
 | -                                                      | -                                                                       | -          | -       | -        | -       |
 | [P1: grading_honesty](./P1_grading_honesty.md)         | `Unscoreable` URL grade (GT-not-a-file) + blank inference → Unknown + docs | -          | done    | 330b0c4  | 2026-07-15 |
 | [P2: nuget_nuspec_fallback](./P2_nuget_nuspec_fallback.md) | NuGet nuspec → repo LICENSE file for the URL field                    | -          | done | 453f143  | 2026-07-15 |
-| [P3: copyright_honesty](./P3_copyright_honesty.md)     | Reject-only copyright denylist guard + judge copyright prompt-tightening | -          | pending |          |         |
+| [P3: copyright_honesty](./P3_copyright_honesty.md)     | Reject-only copyright denylist guard + judge copyright prompt-tightening | -          | done | 4b6ddb6 | 2026-07-15 |
 | [P4: offline_rescore_signoff](./P4_offline_rescore_signoff.md) | Offline re-score sign-off gate over the frozen run             | P1, P2, P3 | pending |          |         |
 
 ## Test commands
@@ -125,7 +125,17 @@ code dependency is imposed between P1 and P2.
   never emitting the wrong holder. The guard is **asymmetric** — it never
   requires the holder to match the package/repo owner. Also tightens the judge
   copyright prompt (small year tolerance; directional same-class "and others").
-- **Notes:**
+- **Notes:** Done. `_STRAY_HOLDERS`/`_is_stray_holder` added module-level in
+  `src/copyright.py`, applied only at the two accept points in `resolve_copyright`
+  (post-file-extraction, post-web-inference); npm step untouched. Seeded with "The
+  Go Authors" / "The Android Open Source Project". `equality_copyright_prompts`
+  gained the two copyright-only judge rules (year tolerance, directional "and
+  others"/"and Contributors"); shared `EQUALITY_JUDGE_SYSTEM` untouched. 130
+  passed (126 + 4 new: file-stray, normal-holder-untouched, web-stray, prompt-content).
+  Fresh-context review: spec conformance and both failure modes PASS, no
+  over-engineering findings (doc-mandated placement); one gap found — web-path
+  stray rejection had no dedicated test — fixed before closing (now covered).
+  Opt-in live re-judge of the ~21 flagged pairs deferred to P4 (needs Azure creds).
 - **Incoming comments:**
 
 ### P4: offline_rescore_signoff
