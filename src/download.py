@@ -156,7 +156,10 @@ def nuget_candidates(purl: str) -> list[str]:
             break
     if repo_url.endswith(".git"):
         repo_url = repo_url[: -len(".git")]
-    segments = [s for s in urlsplit(repo_url).path.split("/") if s]
+    split_repo = urlsplit(repo_url)
+    if (split_repo.hostname or "").lower() not in {"github.com", "www.github.com"}:
+        return []
+    segments = [s for s in split_repo.path.split("/") if s]
     if len(segments) < 2:
         return []
     owner, repo = segments[0], segments[1]

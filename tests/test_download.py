@@ -119,6 +119,27 @@ def test_nuget_candidates_non_nuget():
     assert nuget_candidates("pkg:npm/lodash@4.17.21") == []
 
 
+_NUSPEC_NON_GITHUB_REPO = b"""<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>Some.Package</id>
+    <repository type="git" url="https://gitlab.com/someowner/somerepo.git" />
+    <license type="expression">MIT</license>
+  </metadata>
+</package>
+"""
+
+
+def test_nuget_candidates_non_github_repo_empty(monkeypatch):
+    monkeypatch.setattr(
+        "download.requests.get",
+        lambda url, timeout=None: _ok_response(
+            _NUSPEC_NON_GITHUB_REPO, "application/xml"
+        ),
+    )
+    assert nuget_candidates("pkg:nuget/Some.Package@1.0.0") == []
+
+
 def _ok_response(body: bytes = b"MIT License\n", content_type: str = "text/plain"):
     resp = MagicMock()
     resp.status_code = 200
