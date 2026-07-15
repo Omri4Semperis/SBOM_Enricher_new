@@ -69,7 +69,7 @@ and calls `copyright._is_stray_holder`, whose signature P2 changes.
 | -                                                              | -                                                  | -          | -       | -        | -       |
 | [P1: harden_download_path](./P1_harden_download_path.md)       | B1+S2+S3+N1: gate host, offload, normalize, log    | -          | done | 1d99bae | 2026-07-16 |
 | [P2: association_aware_holder](./P2_association_aware_holder.md) | S1: association-aware stray-holder guard + ADR 0007 | -          | done | 7aa1ef9 | 2026-07-16 |
-| [P3: honest_rescore_and_doc](./P3_honest_rescore_and_doc.md)   | S4: guard-count-only re-score + doc correction     | P2         | blocked | cb10194 | 2026-07-16 |
+| [P3: honest_rescore_and_doc](./P3_honest_rescore_and_doc.md)   | S4: guard-count-only re-score + doc correction     | P2         | in progress | cb10194 | 2026-07-16 |
 
 ## Test commands
 
@@ -136,9 +136,10 @@ to this; the count must never drop.
   not a real remaining false claim (the copyright section's false "20 →
   Unknown" claim is already corrected in the uncommitted draft). User chose
   to block rather than have the executor reword the protected section or
-  self-judge the criterion satisfied. Needs the phase doc's Exit
-  criteria/T2 Verify command amended (e.g. scope the grep to the `copyright`
-  section, or accept an unrelated match) before this phase can complete.
+  self-judge the   criterion satisfied. **Update:** user reviewed and ruled the grep's
+  intent was to catch the false copyright claim, not the unrelated true
+  `license_code_url` sentence — directed treating this single finding as
+  satisfied. Un-blocked; resuming T2 commit and the Validation gate.
 - **Incoming comments:**
 
 ## On completion

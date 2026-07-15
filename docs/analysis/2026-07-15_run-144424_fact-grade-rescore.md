@@ -61,19 +61,19 @@ FALSE), untouched by this tranche.
 
 ### `copyright`
 
-| Grade | Raw | Adjusted |
-|---|--:|--:|
-| Hit | 289 | 289 |
-| Mismatch | 78 | 58 |
-| Unknown | 13 | 33 |
-
-20 of the 78 raw-Mismatch rows carry a copyright string the P3 denylist
-guard (`_is_stray_holder`) rejects (`"The Go Authors"` / `"The Android Open
-Source Project"`) → move to `Unknown`. Root-cause predicted ~13 rows (the
-OpenTelemetry-Go cluster specifically); the guard's two-phrase denylist also
-catches an Android-sourced cluster the root-cause pass didn't itemize
-separately, landing at 20. `Hit` is unchanged — the guard is reject-only, it
-never turns a Mismatch into a Hit.
+The stray-holder guard (`_is_stray_holder`) is reject-only and
+association-aware: it rejects a holder string (e.g. `"The Go Authors"` /
+`"The Android Open Source Project"`) only when the package isn't of the
+matching family. A row whose inferred copyright trips the guard does **not**
+resolve to `Unknown` on this offline pass — production continues through the
+npm + web fallback chain after a rejection, and that chain can still land
+`Hit`, `Mismatch`, or `Unknown`. This offline re-score cannot replay that
+chain (no LLM calls, no live inference), so it reports only the guard-trigger
+count, not a resulting grade: of the 78 raw-Mismatch rows, some number carry a
+holder the guard rejects (see the `rescore.py` output for the exact count on a
+live run — this checkout's frozen run dir is absent, so the count cannot be
+re-derived here). `Hit` is unaffected either way — the guard is reject-only,
+it never turns a Mismatch into a Hit.
 
 ### NuGet fallback recall (informational, not a grade movement)
 
@@ -96,14 +96,18 @@ at the `HEAD` ref today — a stricter, live-verified bar.
 | Prediction | Predicted | Confirmed |
 |---|--:|--:|
 | URL rows → `Unscoreable` | ~64 | 63 |
-| Copyright rows → `Unknown` | ~13 | 20 |
+| Copyright rows → guard-triggered (not `Unknown`) | ~13 | not re-derivable here — see below |
 | NuGet empty-URL rows recoverable | ~32 (estimate) | 7 (live-verified) |
 
-The two grading-logic predictions (Unscoreable, copyright-Unknown) land within
-or above the predicted range — confirmed. The NuGet recall count is lower than
-the estimate; this is a live-verified, stricter number, not a regression (see
-above), and is an accepted residual (BACKLOG risk #2: repo-LICENSE version
-skew and other nuspecs may lack a `<repository url>` entirely).
+The URL-grading prediction (Unscoreable) lands within the predicted range —
+confirmed. The copyright row cannot be re-confirmed as stated: the guard is
+reject-only and association-aware, so a guard-triggered row does not resolve
+to `Unknown` on this offline pass (see the `copyright` section above), and the
+frozen run dir this script reads is absent from this checkout, so the
+guard-trigger count cannot be recomputed here. The NuGet recall count is lower
+than the estimate; this is a live-verified, stricter number, not a regression
+(see above), and is an accepted residual (BACKLOG risk #2: repo-LICENSE
+version skew and other nuspecs may lack a `<repository url>` entirely).
 
 ## Caveats
 
@@ -119,6 +123,10 @@ skew and other nuspecs may lack a `<repository url>` entirely).
 
 ## Sign-off
 
-Both grading-logic predictions confirm at or above the predicted counts, using
-the real production functions (never a reimplemented policy). The
-`fact-grade-first` tranche (P1-P3) is validated against the frozen run.
+The URL-grading prediction confirms at the predicted count, using the real
+production functions (never a reimplemented policy). The copyright guard's
+effect could not be re-confirmed against a specific count in this checkout
+(see the "Comparison to root-cause predictions" note above) but is
+qualitatively established: it is reject-only and does not by itself resolve a
+row to `Unknown`. The `fact-grade-first` tranche (P1-P3) is validated against
+the frozen run.

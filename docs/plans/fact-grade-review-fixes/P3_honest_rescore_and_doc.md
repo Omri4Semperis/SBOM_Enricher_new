@@ -203,6 +203,12 @@ changes (not reverted) so the drafted correction is available once the Exit
 criteria is fixed — see `git diff` on
 `docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md`.
 
+**Resolution (2026-07-16):** user reviewed the collision and ruled it wasn't
+the instruction's intent for the Exit criterion to reject an unrelated, true,
+out-of-scope sentence — directed the executor to treat this single finding
+(the leftover `license_code_url` match) as satisfied and continue. Phase
+un-blocked; proceeding with T2 commit and the Validation gate.
+
 ## If blocked
 
 Set this phase's Status to `blocked` in `PLAN.md`'s table (fill Baseline and
