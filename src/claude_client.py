@@ -7,6 +7,7 @@ import json
 import subprocess
 from pathlib import Path
 
+from pricing import CallMeta
 from prompts import license_prompt
 from retry import with_retries
 
@@ -72,7 +73,7 @@ def _parse_cli_stdout(stdout: bytes) -> dict:
     }
 
 
-async def _claude_once(prompt: str, model: str, schema: dict) -> dict:
+async def _claude_once(prompt: str, model: str, schema: dict, meta: CallMeta) -> dict:
     cmd = [
         "claude",
         "-p",
@@ -99,22 +100,30 @@ async def _claude_once(prompt: str, model: str, schema: dict) -> dict:
         if any(code in low for code in ("401", "403", "404")):
             raise HardFailure(f"claude hard failure ({proc.returncode}): {err[:200]}")
         raise TransientFailure(f"claude exit {proc.returncode}: {err[:200]}")
+    raw = stdout.decode(errors="replace")
+    try:
+        wrapper = json.loads(raw)
+        cost = wrapper.get("total_cost_usd") if isinstance(wrapper, dict) else None
+    except json.JSONDecodeError:
+        cost = None
+    meta.add_call(cost_usd=cost if isinstance(cost, (int, float)) else None, raw=raw)
     return _parse_cli_stdout(stdout)
 
 
 async def infer_license(
     purl: str, lib_name: str, version: str, model: str
-) -> dict:
-    """Call Claude; return {license_name, license_code_url, reasoning}.
+) -> tuple[dict, CallMeta]:
+    """Call Claude; return ({license_name, license_code_url, reasoning}, CallMeta).
 
     On exhausted retries or hard failure: license_name UNKNOWN, empty URL.
     """
     prompt, schema = license_prompt(purl, lib_name, version)
     attempts = {"n": 0}
+    meta = CallMeta()
 
     async def once() -> dict:
         attempts["n"] += 1
-        return await _claude_once(prompt, model, schema)
+        return await _claude_once(prompt, model, schema, meta)
 
     try:
         result = await with_retries(once, classify=_classify)
@@ -126,4 +135,4 @@ async def infer_license(
         result = _unknown(f"error: {e}")
 
     result["attempts"] = attempts["n"]
-    return result
+    return result, meta
