@@ -366,6 +366,31 @@ def test_resolve_keeps_normal_holder(monkeypatch):
     assert out["copyright"] == "Copyright (c) 2020 John-David Dalton"
 
 
+def test_resolve_denylist_stray_holder_web(monkeypatch):
+    import copyright as copyright_mod
+
+    async def fake_extract(text):
+        return copyright_mod._unknown("empty"), CallMeta()
+
+    async def fake_web(*_a, **_k):
+        return {
+            "copyright": "Copyright (c) 2020 The Go Authors",
+            "reasoning": "found in upstream NOTICE",
+        }, CallMeta()
+
+    monkeypatch.setattr(copyright_mod, "extract_copyright", fake_extract)
+    monkeypatch.setattr(copyright_mod, "_npm_author_copyright", lambda _p: None)
+    monkeypatch.setattr(copyright_mod, "infer_copyright_web", fake_web)
+
+    out, _meta = asyncio.run(
+        copyright_mod.resolve_copyright(
+            "", "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
+        )
+    )
+    assert out["copyright"] == "UNKNOWN"
+    assert out["reasoning"] == "stray upstream holder"
+
+
 def test_copyright_prompt_has_year_and_directional_rules():
     from prompts import equality_copyright_prompts
 
