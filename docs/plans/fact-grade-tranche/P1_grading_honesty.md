@@ -197,3 +197,37 @@ Commands + Test status: {gate commands and observed results}
 Assumptions / Open questions: {numbered, or "none"}
 Next action: {next eligible phase per PLAN.md, or "plan complete"}
 ```
+
+## Outcome
+
+Objective: add the `Unscoreable` URL grade end to end (fail_kind →
+UNSCOREABLE sentinel → grade) and grade a blank inferred value as Unknown |
+HEAD: 97ef9d5 | Branch: master
+
+Files changed: `docs/CONTEXT.md`, `docs/adr/0006-unscoreable-grade.md`,
+`src/download.py`, `src/equality.py`, `src/scoring.py`,
+`tests/test_download.py`, `tests/test_equality.py`, `tests/test_scoring.py`
+
+Commands + Test status:
+- Entry: `pytest -q` → exit 0, `119 passed`; `git status --porcelain` → empty. Both held.
+- T1: `pytest tests/test_download.py -q` → exit 0, `18 passed`.
+- T2: `pytest tests/test_equality.py -q` → exit 0, `10 passed`.
+- T3: `pytest tests/test_scoring.py -q` → exit 0, `4 passed`.
+- T4: `pytest -q` → exit 0, `122 passed`; `git status --porcelain` showed both doc paths.
+- Validation gate: `pytest -q` → exit 0, `122 passed`. Fresh-context subagent
+  review (`generalPurpose`, readonly, diff `330b0c4..HEAD` + this doc + the
+  `ponytail-review` tag definitions) → full spec conformance (all 8 Files
+  touched, none extra; both Do-not-touch files confirmed untouched; T1-T4 all
+  pass; both Failure modes avoided; no Anti-goal violations); no
+  over-engineering findings beyond two doc-mandated items (the four-way
+  `fail_kind` classification and the fourth `Unscoreable` grade value — both
+  explicitly ordered by this doc's Tasks, recorded here per the gate's
+  instruction, not fixed); no correctness issues found.
+- Exit: `pytest tests/test_scoring.py::test_grade_item_hmu -q` → exit 0, `1
+  passed`; `pytest tests/test_equality.py -k unscoreable -q` → exit 0, `1
+  passed, 9 deselected`.
+
+Assumptions / Open questions: none.
+
+Next action: next eligible phase per `PLAN.md` is P2 (`nuget_nuspec_fallback`)
+or P3 (`copyright_honesty`) — both depend on nothing and are `pending`.

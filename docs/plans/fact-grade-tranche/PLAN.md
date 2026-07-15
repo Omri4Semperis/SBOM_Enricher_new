@@ -62,7 +62,7 @@ code dependency is imposed between P1 and P2.
 
 | Phase                                                  | Purpose                                                                 | Depends on | Status  | Baseline | Updated |
 | -                                                      | -                                                                       | -          | -       | -        | -       |
-| [P1: grading_honesty](./P1_grading_honesty.md)         | `Unscoreable` URL grade (GT-not-a-file) + blank inference → Unknown + docs | -          | pending |          |         |
+| [P1: grading_honesty](./P1_grading_honesty.md)         | `Unscoreable` URL grade (GT-not-a-file) + blank inference → Unknown + docs | -          | done    | 330b0c4  | 2026-07-15 |
 | [P2: nuget_nuspec_fallback](./P2_nuget_nuspec_fallback.md) | NuGet nuspec → repo LICENSE file for the URL field                    | -          | pending |          |         |
 | [P3: copyright_honesty](./P3_copyright_honesty.md)     | Reject-only copyright denylist guard + judge copyright prompt-tightening | -          | pending |          |         |
 | [P4: offline_rescore_signoff](./P4_offline_rescore_signoff.md) | Offline re-score sign-off gate over the frozen run             | P1, P2, P3 | pending |          |         |
@@ -84,7 +84,14 @@ code dependency is imposed between P1 and P2.
   from a 404/network failure). `grade_item` now also grades a **blank** inferred
   value as `Unknown` (was: only the literal `"UNKNOWN"`). Any Hit-rate math must
   **exclude `Unscoreable`** from the denominator (DECISIONS G2).
-- **Notes:**
+- **Notes:** Done. `fail_kind` ("" / "template" / "html" / "network" /
+  "http_error") added to `DownloadResult`; `compare_url_content` returns
+  `UNSCOREABLE`/`gt_not_a_file` only when GT is HTML and the inferred file
+  already downloaded OK; `grade_item` grades blank-or-`"UNKNOWN"` inferred as
+  `Unknown` and `UNSCOREABLE` as `Unscoreable`. ADR 0006 + `CONTEXT.md`
+  written. 122 passed (119 + 3 new). Fresh-context review: spec conformance
+  full pass, no correctness issues, no over-engineering findings beyond
+  doc-mandated items (see phase doc Outcome).
 - **Incoming comments:**
 
 ### P2: nuget_nuspec_fallback
