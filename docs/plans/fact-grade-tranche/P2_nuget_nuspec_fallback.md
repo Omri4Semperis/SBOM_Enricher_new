@@ -162,6 +162,34 @@ Do not, even if it seems better:
 - No touching the license-**name** field or the SPDX-informs-name path.
 - Nothing beyond this doc's Tasks: no extra abstractions or "while I'm here" fixes.
 
+## Outcome
+Objective: Give NuGet packages a downloadable LICENSE-file fallback via nuspec
+`<repository url>`, mirroring the npm path, without ever fabricating a URL
+from an SPDX id.
+HEAD: bce9ea6 | Branch: master
+Files changed: src/download.py, tests/test_download.py
+Commands run:
+- `pytest tests/test_download.py -k nuget -q` → 4 passed (T1: 3, plus T2's
+  wiring test also matches "nuget")
+- `pytest tests/test_download.py -q` → 22 passed (npm path unbroken)
+- `pytest -q` (full suite) → 126 passed (122 baseline + 4 new)
+- Fresh-context subagent review (diff `453f143..HEAD` + this doc + ponytail-
+  review tag lens): spec conformance PASS, failure-mode handling PASS,
+  anti-goals PASS, over-engineering findings none ("Lean already. Ship.").
+Assumptions:
+1. Only GitHub-shaped `<repository url>` values produce a working raw URL
+   (owner/repo path segments → `raw.githubusercontent.com`); a non-GitHub host
+   still returns a candidate list but it will 404 harmlessly rather than
+   short-circuiting to `[]`. This matches this doc's Context capsule (which
+   only specifies the github.com raw-URL shape) but is narrower than
+   DECISIONS.md branch E's "repo's raw host" phrasing — flagged in PLAN.md for
+   a future phase if non-GitHub NuGet repos turn out to matter.
+2. HEAD ref (not a pinned tag) is the accepted version-skew shortcut per
+   DECISIONS branch I risk #2; marked with the required `ponytail:` comment.
+Open questions: none.
+Next action: P3 (copyright_honesty) — no dependency on P2, ready to run. P4
+(offline_rescore_signoff) still blocked on P3.
+
 ## If blocked
 
 Set this phase's Status to `blocked` in `PLAN.md`'s table (fill Baseline and

@@ -63,7 +63,7 @@ code dependency is imposed between P1 and P2.
 | Phase                                                  | Purpose                                                                 | Depends on | Status  | Baseline | Updated |
 | -                                                      | -                                                                       | -          | -       | -        | -       |
 | [P1: grading_honesty](./P1_grading_honesty.md)         | `Unscoreable` URL grade (GT-not-a-file) + blank inference → Unknown + docs | -          | done    | 330b0c4  | 2026-07-15 |
-| [P2: nuget_nuspec_fallback](./P2_nuget_nuspec_fallback.md) | NuGet nuspec → repo LICENSE file for the URL field                    | -          | pending |          |         |
+| [P2: nuget_nuspec_fallback](./P2_nuget_nuspec_fallback.md) | NuGet nuspec → repo LICENSE file for the URL field                    | -          | done | 453f143  | 2026-07-15 |
 | [P3: copyright_honesty](./P3_copyright_honesty.md)     | Reject-only copyright denylist guard + judge copyright prompt-tightening | -          | pending |          |         |
 | [P4: offline_rescore_signoff](./P4_offline_rescore_signoff.md) | Offline re-score sign-off gate over the frozen run             | P1, P2, P3 | pending |          |         |
 
@@ -102,7 +102,19 @@ code dependency is imposed between P1 and P2.
   a URL** from an SPDX id. When only an SPDX expression or a legacy EULA
   `licenseUrl` exists, no file is produced → the URL stays empty → P1's
   blank→Unknown grades it `Unknown`.
-- **Notes:**
+- **Notes:** Done. `nuget_candidates` fetches the flat-container nuspec, matches
+  `<repository url>` by local XML tag name (namespace-agnostic), and derives
+  `raw.githubusercontent.com/{owner}/{repo}/HEAD/{filename}` candidates; fails
+  closed to `[]` on any fetch/parse issue or missing repo (never fabricates from
+  SPDX). Wired into `fetch_license_file` as a fallback after the npm loop.
+  HEAD-ref shortcut marked with the required `ponytail:` comment. 126 passed
+  (122 + 4 new). Fresh-context review: spec conformance, failure-mode handling,
+  and anti-goals all PASS; no over-engineering findings. Non-blocking note: the
+  owner/repo extraction doesn't check the host, so a non-GitHub `<repository
+  url>` (GitLab, Bitbucket, Azure DevOps) builds a raw.githubusercontent.com URL
+  that will just 404 rather than returning `[]` early — harmless (no crash, no
+  fabrication) but narrower than DECISIONS.md branch E's "repo's raw host"
+  phrasing; worth revisiting if non-GitHub NuGet repos turn out to matter.
 - **Incoming comments:**
 
 ### P3: copyright_honesty
