@@ -186,14 +186,49 @@ phase's doc.
    names and `infer_license` return shape so P2–P5 rely on the real signature.
 4. Record the full outcome in this doc under an **Outcome** heading:
 
-```txt
 ## Outcome
+
 Objective: capture Claude cost/raw on results + extended CSV
-HEAD: {git rev-parse --short HEAD} | Branch: {git branch --show-current}
-Files changed: {git diff --name-only <baseline>..HEAD output}
-Commands run: {the Verify/gate commands and their observed results}
-Test status: {suite command + observed result}
-Assumptions: {numbered, or "none"}
-Open questions: {numbered, or "none"}
+
+HEAD: a3d70fd | Branch: master
+
+Baseline: 27c1557
+
+Files changed:
+- src/pricing.py
+- src/claude_client.py
+- src/pipeline.py
+- src/results_csv.py
+- tests/test_pricing.py
+- tests/test_claude_client.py
+- tests/test_results_csv.py
+- tests/test_summary.py
+
+Commands run:
+- Entry: `pytest -q` → 95 passed; `git status --porcelain` → empty
+- T1: `pytest tests/test_pricing.py -q` → 6 passed
+- T2: `pytest tests/test_claude_client.py -q` → 6 passed
+- T3: `pytest tests/test_results_csv.py tests/test_pipeline.py -q` → 15 passed
+- Gate: `pytest -q` → 100 passed
+- Fresh review (subagent): approve; no must-fix findings
+
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 100 passed
+
+Assumptions: none
+
+Open questions: none
+
+Deviations:
+1. Touched `tests/test_summary.py` (not on Touch list) — Failure mode 2: fake
+   plain-dict path leaves empty `CallMeta`, so extended CSV cell is `0.000000`
+   not `unknown`; assertion updated.
+2. Pipeline tolerates plain-dict `infer_license` return (empty `CallMeta`) so
+   existing fakes keep working without a Touch-list expansion.
+
+Signatures for later phases:
+- `CallMeta(known_usd, billable_calls, unknown_calls, raws)` + `add_call` /
+  `total_usd` / `cost_cell` / module-level `combine`
+- `infer_license(...) -> tuple[dict, CallMeta]`
+- `ComponentResult.license_meta: CallMeta`
+
 Next action: P2 per PLAN.md's table
-```

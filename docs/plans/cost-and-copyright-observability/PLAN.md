@@ -68,7 +68,7 @@ captured at phase start. Updated is the date of the last status change. -->
 
 | Phase                                                                   | Purpose                                                              | Depends on | Status  | Baseline | Updated |
 | -                                                                       | -                                                                   | -          | -       | -        | -       |
-| [P1: claude_cost_capture](./P1_claude_cost_capture.md)                  | `CallMeta` accumulator + Claude cost/raw/tokens → extended CSV       | -          | pending |          |         |
+| [P1: claude_cost_capture](./P1_claude_cost_capture.md)                  | `CallMeta` accumulator + Claude cost/raw/tokens → extended CSV       | -          | done | 27c1557 | 2026-07-15 |
 | [P2: gpt41_cost_capture](./P2_gpt41_cost_capture.md)                    | GPT-4.1 cost/raw for copyright + equality judges → extended CSV      | P1         | pending |          |         |
 | [P3: copyright_fallback_chain](./P3_copyright_fallback_chain.md)        | npm author → Claude web copyright fallback, cost into copyright bucket | P2       | pending |          |         |
 | [P4: summary_run_costs_and_schema](./P4_summary_run_costs_and_schema.md)| Real `summary.json` cost rollup + `run_info` grouping + drop saved_by_cache | P3   | pending |          |         |
@@ -99,7 +99,11 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   `ComponentResult`. Cache hits produce an empty `CallMeta` (0 calls, 0 usd,
   known). Rejected Claude attempts: read `total_cost_usd` from the CLI JSON
   wrapper before raising `ParseFailure`.
-- **Notes:**
+- **Notes:** Done. `CallMeta` + `combine`/`add_call`/`total_usd`/`cost_cell` in
+  `pricing.py`. `infer_license` → `(dict, CallMeta)`. Pipeline tolerates plain-dict
+  fakes (empty meta). Extended CSV `inferencer_cost_usd`/`inferencer_raw_response`
+  from `license_meta`. Suite: 100 passed. Deviation: touched
+  `tests/test_summary.py` (assertion only; Failure mode 2).
 - **Incoming comments:**
 
 ### P2: gpt41_cost_capture
