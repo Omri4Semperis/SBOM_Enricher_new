@@ -152,3 +152,50 @@ def test_parse_reject_then_good_sums_cost(monkeypatch):
     assert meta.billable_calls == 2
     assert meta.total_usd() == 0.03
     assert len(meta.raws) == 2
+
+
+def test_infer_copyright_web_success(monkeypatch):
+    payload = {
+        "copyright": "Copyright (c) 2020 Jane Doe",
+        "reasoning": "LICENSE header at tag",
+    }
+    wrapper = json.dumps(
+        {"structured_output": payload, "total_cost_usd": 0.003}
+    ).encode()
+
+    async def fake_exec(*_a, **_k):
+        return _proc(stdout=wrapper)
+
+    monkeypatch.setattr(claude_client.asyncio, "create_subprocess_exec", fake_exec)
+    monkeypatch.setattr(claude_client.asyncio, "sleep", AsyncMock())
+
+    out, meta = asyncio.run(
+        claude_client.infer_copyright_web(
+            "pkg:npm/foo@1.0.0", "foo", "1.0.0", "claude-haiku-4-5"
+        )
+    )
+    assert out["copyright"] == "Copyright (c) 2020 Jane Doe"
+    assert "LICENSE" in out["reasoning"]
+    assert out["attempts"] == 1
+    assert meta.billable_calls == 1
+    assert meta.total_usd() == 0.003
+    assert meta.raws[0]
+
+
+def test_infer_copyright_web_hard_failure_unknown(monkeypatch):
+    calls = {"n": 0}
+
+    async def fake_exec(*_a, **_k):
+        calls["n"] += 1
+        return _proc(stderr=b"HTTP 401 unauthorized", returncode=1)
+
+    monkeypatch.setattr(claude_client.asyncio, "create_subprocess_exec", fake_exec)
+    monkeypatch.setattr(claude_client.asyncio, "sleep", AsyncMock())
+
+    out, meta = asyncio.run(
+        claude_client.infer_copyright_web("pkg:npm/x@1", "x", "1", "claude-haiku-4-5")
+    )
+    assert out["copyright"] == "UNKNOWN"
+    assert "hard failure" in out["reasoning"]
+    assert calls["n"] == 1
+    assert meta.billable_calls == 0

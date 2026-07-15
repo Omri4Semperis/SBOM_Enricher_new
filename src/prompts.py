@@ -100,6 +100,49 @@ def copyright_prompt(license_text: str) -> tuple[str, str]:
     return COPYRIGHT_SYSTEM, user
 
 
+COPYRIGHT_WEB_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "copyright": {
+            "type": "string",
+            "description": "Verbatim copyright statement, or UNKNOWN",
+        },
+        "reasoning": {
+            "type": "string",
+            "description": "Concise sources-checked summary",
+        },
+    },
+    "required": ["copyright", "reasoning"],
+    "additionalProperties": False,
+}
+
+
+def copyright_web_prompt(purl: str, lib_name: str, version: str) -> tuple[str, dict]:
+    """Build the Claude web-copyright prompt and its --json-schema dict."""
+    purl = (purl or "").strip()
+    lib = (lib_name or "").strip()
+    ver = (version or "").strip()
+    if purl:
+        subject = f"{lib}@{ver} (purl: {purl})"
+    else:
+        subject = f"{lib}@{ver} (no purl)"
+
+    text = f"""\
+Who holds the copyright for {subject}?
+
+Find a source-backed verbatim copyright statement (e.g. 'Copyright (c) 2020
+Foo Inc.') from this version's upstream LICENSE/COPYING/NOTICE or source-file
+headers. Use web search/fetch. Prefer package-URL (purl) as the primary key.
+
+copyright rules:
+- Return a concrete holder notice — a real person, company, or project name.
+- Never return placeholder/template tokens (e.g. '<year>', '<copyright holders>').
+- If unverifiable → copyright "UNKNOWN". Do not invent a holder.
+
+Return exactly the two fields in the JSON schema. No markdown fences."""
+    return text, COPYRIGHT_WEB_SCHEMA
+
+
 EQUALITY_JUDGE_SYSTEM = """\
 You are an equality judge for software-license audit.
 

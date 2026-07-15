@@ -1,4 +1,4 @@
-"""Claude CLI client for license inference."""
+"""Claude CLI client for license inference and web copyright fallback."""
 
 from __future__ import annotations
 
@@ -8,10 +8,11 @@ import subprocess
 from pathlib import Path
 
 from pricing import CallMeta
-from prompts import license_prompt
+from prompts import copyright_web_prompt, license_prompt
 from retry import with_retries
 
-REQUIRED_KEYS = ("license_name", "license_code_url", "reasoning")
+LICENSE_KEYS = ("license_name", "license_code_url", "reasoning")
+COPYRIGHT_KEYS = ("copyright", "reasoning")
 
 
 class TransientFailure(Exception):
@@ -36,7 +37,7 @@ def _classify(exc: BaseException) -> str:
     return "transient"
 
 
-def _unknown(reason: str) -> dict:
+def _unknown_license(reason: str) -> dict:
     return {
         "license_name": "UNKNOWN",
         "license_code_url": "",
@@ -44,7 +45,11 @@ def _unknown(reason: str) -> dict:
     }
 
 
-def _parse_cli_stdout(stdout: bytes) -> dict:
+def _unknown_copyright(reason: str) -> dict:
+    return {"copyright": "UNKNOWN", "reasoning": reason}
+
+
+def _parse_cli_stdout(stdout: bytes, required_keys: tuple[str, ...]) -> dict:
     try:
         data = json.loads(stdout.decode())
     except (UnicodeDecodeError, json.JSONDecodeError) as e:
@@ -63,17 +68,15 @@ def _parse_cli_stdout(stdout: bytes) -> dict:
     if not isinstance(payload, dict):
         raise ParseFailure("missing structured_output/result object")
 
-    if any(k not in payload for k in REQUIRED_KEYS):
+    if any(k not in payload for k in required_keys):
         raise ParseFailure(f"contract keys missing: {sorted(payload)}")
 
-    return {
-        "license_name": str(payload["license_name"]),
-        "license_code_url": str(payload["license_code_url"]),
-        "reasoning": str(payload["reasoning"]),
-    }
+    return {k: str(payload[k]) for k in required_keys}
 
 
-async def _claude_once(prompt: str, model: str, schema: dict, meta: CallMeta) -> dict:
+async def _claude_once(
+    prompt: str, model: str, schema: dict, meta: CallMeta, required_keys: tuple[str, ...]
+) -> dict:
     cmd = [
         "claude",
         "-p",
@@ -107,7 +110,7 @@ async def _claude_once(prompt: str, model: str, schema: dict, meta: CallMeta) ->
     except json.JSONDecodeError:
         cost = None
     meta.add_call(cost_usd=cost if isinstance(cost, (int, float)) else None, raw=raw)
-    return _parse_cli_stdout(stdout)
+    return _parse_cli_stdout(stdout, required_keys)
 
 
 async def infer_license(
@@ -123,16 +126,44 @@ async def infer_license(
 
     async def once() -> dict:
         attempts["n"] += 1
-        return await _claude_once(prompt, model, schema, meta)
+        return await _claude_once(prompt, model, schema, meta, LICENSE_KEYS)
 
     try:
         result = await with_retries(once, classify=_classify)
     except HardFailure as e:
-        result = _unknown(f"hard failure: {e}")
+        result = _unknown_license(f"hard failure: {e}")
     except (TransientFailure, ParseFailure) as e:
-        result = _unknown(f"retries exhausted: {e}")
+        result = _unknown_license(f"retries exhausted: {e}")
     except Exception as e:  # noqa: BLE001 — fail closed per component
-        result = _unknown(f"error: {e}")
+        result = _unknown_license(f"error: {e}")
+
+    result["attempts"] = attempts["n"]
+    return result, meta
+
+
+async def infer_copyright_web(
+    purl: str, lib_name: str, version: str, model: str
+) -> tuple[dict, CallMeta]:
+    """Call Claude for web copyright; return ({copyright, reasoning}, CallMeta).
+
+    On exhausted retries or hard failure: copyright UNKNOWN. Always returns meta.
+    """
+    prompt, schema = copyright_web_prompt(purl, lib_name, version)
+    attempts = {"n": 0}
+    meta = CallMeta()
+
+    async def once() -> dict:
+        attempts["n"] += 1
+        return await _claude_once(prompt, model, schema, meta, COPYRIGHT_KEYS)
+
+    try:
+        result = await with_retries(once, classify=_classify)
+    except HardFailure as e:
+        result = _unknown_copyright(f"hard failure: {e}")
+    except (TransientFailure, ParseFailure) as e:
+        result = _unknown_copyright(f"retries exhausted: {e}")
+    except Exception as e:  # noqa: BLE001 — fail closed per component
+        result = _unknown_copyright(f"error: {e}")
 
     result["attempts"] = attempts["n"]
     return result, meta
