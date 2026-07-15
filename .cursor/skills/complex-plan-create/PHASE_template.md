@@ -1,8 +1,9 @@
 <!-- TEMPLATE RULES: replace every {slot}; delete every comment like this
-one; keep all other text verbatim. Keep the instantiated doc under 200
-lines. This doc plus its Context capsule plus PLAN.md is what the executor
-reads — if a fact is needed to implement this phase, it lives here or in
-PLAN.md. -->
+one; keep all other text verbatim. Aim for 200 lines, 250 hard ceiling —
+past 200 needs a one-line reason recorded in the doc (see SKILL.md Sizing);
+never trim phase content silently to fit. This doc plus its Context capsule
+plus PLAN.md is what the executor reads — if a fact is needed to implement
+this phase, it lives here or in PLAN.md. -->
 
 # P{N}: {snake_case_title}
 
@@ -11,13 +12,9 @@ This phase is one step toward it; read `PLAN.md`'s Goal and Context in full
 before starting. That line orients you; `PLAN.md` is the source of truth, so
 don't restate its detail here.
 
-**Your workspace.** This doc is writable: during implementation, record
-whatever detail you need here (decisions, dead ends, findings). The other
-file you may edit is `PLAN.md` — your row in the phase table, a concise
-reflection in your own Phase-notes block, and **Incoming comments** in
-*another* phase's block when you discover something it must know. You never
-edit another phase's `P*` doc. Status is tracked in `PLAN.md`'s table, not
-here.
+**Your workspace.** Write freely here during implementation. Your only other
+editable file is `PLAN.md` (your table row, your Phase-notes block, Incoming
+comments in other phases' blocks); never another phase's `P*` doc.
 
 **Demo:** {one sentence: what a human can run or observe when this phase is done}
 
@@ -96,31 +93,19 @@ Runnable proof the Demo is real:
 - `{command}` → {expected output}
 - `{command}` → {expected output}
 
-## Rollback
-
-To abandon this phase: `git reset --hard {baseline hash from PLAN.md's phase table}`, then set this phase's Status to `blocked` in `PLAN.md` with a one-line reason in your Phase-notes block.
-
-## Failure modes
-
-<!-- 2-3 most likely ways this phase goes wrong, each with a recovery. -->
-
-1. {failure} → {recovery steps}
-2. {failure} → {recovery steps}
-
 ## Anti-goals
 
 Do not, even if it seems better:
 
 - {anti-goal, e.g. "no refactor of X — P4 owns it"}
-- Nothing beyond this doc's Tasks: no extra abstractions, options, or
-  "while I'm here" fixes. Spare capacity goes into verification, not scope.
 
 ## If blocked
 
 Set this phase's Status to `blocked` in `PLAN.md`'s table (fill Baseline and
 Updated), add a one-line reason to your Phase-notes block, then report to the
 user and stop. Do not guess, do not widen the file list, do not edit another
-phase's doc.
+phase's doc. To abandon work already done, roll back with
+`git reset --hard {baseline hash from PLAN.md's phase table}`.
 
 ## On completion
 

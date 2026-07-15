@@ -1,7 +1,7 @@
 ---
 name: complex-plan-create
 metadata:
-  version: 26-07-15-1
+  version: 26-07-15-2
   provenance: Original to this library. No known upstream skill; uses generic multi-phase planning concepts only.
 description: Create a multi-phase, multi-session plan as a docs/plans/ directory (a live PLAN.md plus one doc per phase, executed later via complex-plan-implement-phase). Use when the user asks to plan something complex or long-running, break work into phases, create a PLAN.md, make a multi-session or multi-week plan, or plan a large refactor/migration/feature spanning many sessions. Do NOT use for plans that fit in a single session, or to execute an existing plan (that's complex-plan-implement-phase).
 ---
@@ -38,7 +38,8 @@ cross-phase notes.
    the template rules verbatim (replace `{slots}`, delete template comments,
    keep the rest). Seed each phase's PLAN.md block and Context capsule.
 4. **Self-check** (run these, don't eyeball):
-   - `wc -l PLAN.md P*_*.md` → PLAN.md and every phase doc under 200 lines
+   - `wc -l PLAN.md P*_*.md` → every doc ≤250 lines; aim for 200. A doc at
+     201–250 needs a one-line reason recorded in it (see Sizing). Over 250 → act.
    - `grep -L "Demo:" P*_*.md` → empty (every phase has a Demo)
    - `grep -c "→" P*_*.md` per file → >0 (verify commands with expected output exist)
    - every `Depends on` id exists, no cycles (walk the table by hand — it's ≤10 rows)
@@ -54,6 +55,14 @@ cross-phase notes.
 - Phase: 2–5 tasks and ≤8 files touched. Over either limit → split.
   Under 2 tasks → merge into a neighbor.
 - Plan: ≤10 phases. Needs more → split into sequential plans and say so.
+- Doc length: 200 lines is the target, 250 the hard ceiling. Over 200,
+  triage the *cause* before touching anything — never trim phase content
+  silently, and never move a phase's own detail into another phase to hit the
+  number. Duplicated or leftover template prose → trim (loses nothing). A
+  fact another phase needs → move to that phase's PLAN.md block (its rightful
+  home). Genuinely >5 tasks or >8 files → split (above). If none apply — one
+  cohesive phase that is simply long — record a one-line reason in the doc and
+  let it run to 250. Past 250 → it must split.
 - Never size by predicted context usage — you can't measure a future
   session. Count tasks and files.
 
