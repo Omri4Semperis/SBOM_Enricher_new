@@ -1,7 +1,7 @@
 ---
 name: complex-plan-create
 metadata:
-  version: 26-07-14-1
+  version: 26-07-15-1
   provenance: Original to this library. No known upstream skill; uses generic multi-phase planning concepts only.
 description: Create a multi-phase, multi-session plan as a docs/plans/ directory (a live PLAN.md plus one doc per phase, executed later via complex-plan-implement-phase). Use when the user asks to plan something complex or long-running, break work into phases, create a PLAN.md, make a multi-session or multi-week plan, or plan a large refactor/migration/feature spanning many sessions. Do NOT use for plans that fit in a single session, or to execute an existing plan (that's complex-plan-implement-phase).
 ---
@@ -31,8 +31,7 @@ cross-phase notes.
 
 1. **Gate:** for each candidate phase, try to write its one-line Demo and
    name the command that will verify it. If you can't, requirements are too
-   fuzzy to plan — stop and propose a `grilling` skill session instead
-   (read and follow `../grilling/SKILL.md`).
+   fuzzy to plan — stop and propose a /grilling session instead.
 2. **Decompose in chat first:** present phases and their dependencies for
    approval before writing any file.
 3. **Write:** create the directory, `PLAN.md`, and every phase doc. Follow
@@ -75,7 +74,9 @@ refactors.
   incoming notes). An executor reads all of `PLAN.md` for context.
 - `P{N}_{...}.md` is the **phase's own workspace**: the full implementation
   detail, the Context capsule, the tasks. Its executor reads it top to bottom
-  and writes freely into it during implementation.
+  and writes freely into it during implementation. It opens with a one-line
+  **Plan:** orientation — the overall goal this phase serves — pointing at
+  `PLAN.md` for depth rather than duplicating its Goal/Context.
 
 Balance where facts go: implementation detail belongs in the phase doc; a
 fact another phase needs belongs in that phase's `PLAN.md` block (reflected
@@ -110,5 +111,4 @@ phase needs, the phase is too big.
   into fragments — ambiguity costs more than tokens.
 - Mermaid only where a diagram truly beats a paragraph. The phase table is
   the dependency source of truth; you rarely also need a graph.
-- Choose the laziest approach that works (the `ponytail` philosophy —
-  `../ponytail/SKILL.md`).
+- Choose the laziest approach that works (the /ponytail philosophy).

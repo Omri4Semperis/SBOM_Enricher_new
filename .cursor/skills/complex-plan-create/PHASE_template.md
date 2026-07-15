@@ -6,6 +6,11 @@ PLAN.md. -->
 
 # P{N}: {snake_case_title}
 
+**Plan:** {plan name} — {one line: the overall goal this whole plan serves}.
+This phase is one step toward it; read `PLAN.md`'s Goal and Context in full
+before starting. That line orients you; `PLAN.md` is the source of truth, so
+don't restate its detail here.
+
 **Your workspace.** This doc is writable: during implementation, record
 whatever detail you need here (decisions, dead ends, findings). The other
 file you may edit is `PLAN.md` — your row in the phase table, a concise
@@ -77,9 +82,8 @@ All of these, in order, before Exit criteria:
 3. Fresh review: the diff `git diff {baseline placeholder — executor
    substitutes the hash recorded in PLAN.md at phase start}..HEAD` is
    reviewed against this doc plus an over-engineering lens by a context that
-   did not implement it (Cursor Task tool → `generalPurpose` subagent, readonly,
-   given only the diff, this doc, and the lens the executor skill supplies; if
-   Task/subagents are unavailable, stop and ask the
+   did not implement it (subagent given only the diff, this doc, and the lens
+   the executor skill supplies; if subagents are unavailable, stop and ask the
    user to review in a new session). Fix findings, re-run 1-2 — but a lens
    finding on something this doc explicitly ordered is NOT fixed; record it as
    a note here and, if it affects another phase, an Incoming comment in that
