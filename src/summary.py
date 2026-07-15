@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pricing import UNKNOWN_COST, combine, format_cost
+from pricing import combine, format_cost
 
 if TYPE_CHECKING:
     from config import Config
@@ -61,10 +61,8 @@ def _cost_bucket(
 ) -> dict:
     return {
         "total_usd": format_cost(total_usd),
-        "avg_per_row_usd": (
-            format_cost(total_usd / n if n and total_usd is not None else None)
-            if total_usd is not None
-            else UNKNOWN_COST
+        "avg_per_row_usd": format_cost(
+            total_usd / n if n and total_usd is not None else None
         ),
         "unknown_cost_calls": unknown_calls,
     }
@@ -134,10 +132,8 @@ def build_summary(
             ),
         },
         "total_usd": format_cost(run_total),
-        "avg_per_row_usd": (
-            format_cost(run_total / n if n and run_total is not None else None)
-            if run_total is not None
-            else UNKNOWN_COST
+        "avg_per_row_usd": format_cost(
+            run_total / n if n and run_total is not None else None
         ),
     }
 
