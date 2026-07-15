@@ -167,6 +167,15 @@ def equality_copyright_prompts(inferred: str, ground_truth: str) -> tuple[str, s
         "Do these two copyright notices refer to the same holder/notice?\n\n"
         f"inferred: {inferred}\n"
         f"ground_truth: {ground_truth}\n\n"
+        "Rules for this comparison:\n"
+        "- Year tolerance: if the holder matches, a small year difference (about "
+        "1-2 years) is still the same notice. Do not ignore years altogether — a "
+        "large or clearly different range is not automatically equal.\n"
+        "- Directional extra holders: 'and Contributors' / 'and others' counts as "
+        "equal only when it names the same class of holder more fully, and the "
+        "inferred side is the more elaborate one (inferred naming more than "
+        "ground_truth is fine; ground_truth naming more than inferred is NOT "
+        "automatically equal). A different class of added contributor is not equal.\n\n"
         "Reply with the JSON object only."
     )
     return EQUALITY_JUDGE_SYSTEM, user

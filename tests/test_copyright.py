@@ -366,6 +366,15 @@ def test_resolve_keeps_normal_holder(monkeypatch):
     assert out["copyright"] == "Copyright (c) 2020 John-David Dalton"
 
 
+def test_copyright_prompt_has_year_and_directional_rules():
+    from prompts import equality_copyright_prompts
+
+    _system, user = equality_copyright_prompts("inferred text", "ground truth text")
+    assert "year" in user
+    assert "and Contributors" in user
+    assert "and others" in user
+
+
 def test_resolve_web_placeholder_rejected(monkeypatch):
     import copyright as copyright_mod
 
