@@ -107,7 +107,7 @@ Run each; all must hold before any other work. If any fails, follow
   model)`: run `extract_copyright` (file); if UNKNOWN and npm, try
   `_npm_author_copyright`; if still UNKNOWN, try `infer_copyright_web` (reject
   placeholders/UNKNOWN); return the first success plus a merged `CallMeta` (file
-  + web; npm contributes none). Never overwrite a found value.
+  - web; npm contributes none). Never overwrite a found value.
 - Verify: `.\.venv\Scripts\python.exe -m pytest tests/test_copyright.py -q` →
   exit 0 (file success → no fallback called; file UNKNOWN + npm author → npm
   value, web NOT called; both file+npm UNKNOWN → web value; author string with
@@ -191,6 +191,7 @@ phase's doc.
 Objective: file → npm author → Claude web copyright chain with cost capture
 HEAD: c93ae10 | Branch: master
 Files changed:
+
 - docs/plans/cost-and-copyright-observability/PLAN.md
 - src/claude_client.py
 - src/copyright.py
