@@ -134,11 +134,24 @@ def test_fixture_run_extended_csv_and_summary(tmp_path, monkeypatch):
     summary_path = out / "summary.json"
     assert summary_path.is_file()
     payload = json.loads(summary_path.read_text(encoding="utf-8"))
-    assert payload["run_name"] == "ops-demo"
-    assert payload["model"] == "claude-opus-4-8"
-    assert payload["workers"] == 2
-    assert payload["components"] == 3
-    assert "started_at_utc" in payload and "ended_at_utc" in payload
+    assert set(payload) == {"run_info", "costs", "timings"}
+    info = payload["run_info"]
+    assert list(info) == [
+        "run_dir",
+        "run_id",
+        "run_name",
+        "model",
+        "workers",
+        "components",
+        "cache_hits",
+        "started_at_utc",
+        "ended_at_utc",
+    ]
+    assert info["run_name"] == "ops-demo"
+    assert info["model"] == "claude-opus-4-8"
+    assert info["workers"] == 2
+    assert info["components"] == 3
+    assert "started_at_utc" in info and "ended_at_utc" in info
     costs = payload["costs"]
     assert "license_inference" in costs
     assert "copyright_extraction" in costs
@@ -147,7 +160,7 @@ def test_fixture_run_extended_csv_and_summary(tmp_path, monkeypatch):
     assert costs["total_usd"] == "0.000000"
     assert costs["license_inference"]["total_usd"] == "0.000000"
     assert costs["license_inference"]["unknown_cost_calls"] == 0
-    assert "saved_by_cache_usd" in costs["license_inference"]
+    assert "saved_by_cache_usd" not in json.dumps(payload)
     timings = payload["timings"]
     assert timings["wall_seconds"] >= 0
     assert timings["avg_seconds_per_row"] is not None
@@ -185,12 +198,12 @@ def test_build_summary_cache_hit_zero_cost(tmp_path):
     payload = build_summary(
         cfg, tmp_path, [hit, miss], started_at=now, ended_at=now, wall_seconds=1.0
     )
-    assert payload["cache_hits"] == 1
+    assert payload["run_info"]["cache_hits"] == 1
     # Empty CallMeta on both → known $0, zero unknown calls.
     assert payload["costs"]["license_inference"]["unknown_cost_calls"] == 0
     assert payload["costs"]["license_inference"]["total_usd"] == "0.000000"
     assert payload["costs"]["total_usd"] == "0.000000"
-
+    assert "saved_by_cache_usd" not in json.dumps(payload)
 
 def test_build_summary_rolls_up_numeric_metas(tmp_path):
     from datetime import datetime, timezone
@@ -233,6 +246,8 @@ def test_build_summary_rolls_up_numeric_metas(tmp_path):
     assert costs["copyright_extraction"]["total_usd"] == "0.020000"
     assert costs["total_usd"] == "0.030000"
     assert costs["avg_per_row_usd"] == "0.030000"
+    assert set(payload) == {"run_info", "costs", "timings"}
+    assert "saved_by_cache_usd" not in json.dumps(payload)
 
 
 def test_build_summary_unknown_meta_forces_unknown(tmp_path):

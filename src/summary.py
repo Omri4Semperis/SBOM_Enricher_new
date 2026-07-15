@@ -58,11 +58,9 @@ def _cost_bucket(
     total_usd: float | None,
     n: int,
     unknown_calls: int,
-    saved_by_cache_usd: float = 0.0,
-    include_saved: bool = True,
 ) -> dict:
-    bucket: dict = {
-        "total_usd": format_cost(total_usd) if total_usd is not None else UNKNOWN_COST,
+    return {
+        "total_usd": format_cost(total_usd),
         "avg_per_row_usd": (
             format_cost(total_usd / n if n and total_usd is not None else None)
             if total_usd is not None
@@ -70,9 +68,6 @@ def _cost_bucket(
         ),
         "unknown_cost_calls": unknown_calls,
     }
-    if include_saved:
-        bucket["saved_by_cache_usd"] = round(saved_by_cache_usd, 6)
-    return bucket
 
 
 def build_summary(
@@ -115,32 +110,27 @@ def build_summary(
             total_usd=license_m.total_usd(),
             n=n,
             unknown_calls=license_m.unknown_calls,
-            saved_by_cache_usd=0.0,
         ),
         "copyright_extraction": _cost_bucket(
             total_usd=copyright_m.total_usd(),
             n=n,
             unknown_calls=copyright_m.unknown_calls,
-            saved_by_cache_usd=0.0,
         ),
         "equality_judges": {
             "license": _cost_bucket(
                 total_usd=eq_name_m.total_usd(),
                 n=n,
                 unknown_calls=eq_name_m.unknown_calls,
-                include_saved=False,
             ),
             "url": _cost_bucket(
                 total_usd=eq_url_m.total_usd(),
                 n=n,
                 unknown_calls=eq_url_m.unknown_calls,
-                include_saved=False,
             ),
             "copyright": _cost_bucket(
                 total_usd=eq_cp_m.total_usd(),
                 n=n,
                 unknown_calls=eq_cp_m.unknown_calls,
-                include_saved=False,
             ),
         },
         "total_usd": format_cost(run_total),
@@ -152,15 +142,17 @@ def build_summary(
     }
 
     return {
-        "run_dir": str(run_dir),
-        "run_id": run_dir.name,
-        "run_name": config.run_name,
-        "model": config.model,
-        "workers": config.workers,
-        "components": n,
-        "cache_hits": cache_hits,
-        "started_at_utc": started_at.astimezone(timezone.utc).isoformat(),
-        "ended_at_utc": ended_at.astimezone(timezone.utc).isoformat(),
+        "run_info": {
+            "run_dir": str(run_dir),
+            "run_id": run_dir.name,
+            "run_name": config.run_name,
+            "model": config.model,
+            "workers": config.workers,
+            "components": n,
+            "cache_hits": cache_hits,
+            "started_at_utc": started_at.astimezone(timezone.utc).isoformat(),
+            "ended_at_utc": ended_at.astimezone(timezone.utc).isoformat(),
+        },
         "costs": costs,
         "timings": {
             "wall_seconds": round(wall_seconds, 6),
