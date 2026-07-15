@@ -20,10 +20,10 @@ class _Fake:
 
 
 def test_grade_item_hmu():
-    assert scoring.grade_item("MIT", "TRUE") == "h"
-    assert scoring.grade_item("MIT", "FALSE") == "m"
-    assert scoring.grade_item("UNKNOWN", "FALSE") == "u"
-    assert scoring.grade_item("UNKNOWN", "TRUE") == "u"
+    assert scoring.grade_item("MIT", "TRUE") == "Hit"
+    assert scoring.grade_item("MIT", "FALSE") == "Mismatch"
+    assert scoring.grade_item("UNKNOWN", "FALSE") == "Unknown"
+    assert scoring.grade_item("UNKNOWN", "TRUE") == "Unknown"
 
 
 def test_mixed_tally(tmp_path):
@@ -68,8 +68,8 @@ def test_mixed_tally(tmp_path):
         (r["license_name"], r["license_code_url"], r["copyright"]): r["Count"]
         for r in rows
     }
-    assert by[("h", "h", "h")] == "2"
-    assert by[("h", "m", "u")] == "1"
+    assert by[("Hit", "Hit", "Hit")] == "2"
+    assert by[("Hit", "Mismatch", "Unknown")] == "1"
     assert all(int(r["Count"]) > 0 for r in rows)
 
 
@@ -91,4 +91,4 @@ def test_partial_gt_columns_only(tmp_path):
         rows = list(csv.DictReader(f))
     assert list(rows[0].keys()) == ["license_name", "Count"]
     counts = {r["license_name"]: r["Count"] for r in rows}
-    assert counts == {"h": "1", "m": "1"}
+    assert counts == {"Hit": "1", "Mismatch": "1"}

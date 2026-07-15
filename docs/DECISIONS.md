@@ -91,7 +91,7 @@ results_{model_short}_{n}_extended.csv  everything: raw responses per LLM,
 summary.json      run info: paths, run id, run name (if config supplies one),
                   model, workers, components count, start/end time (UTC),
                   plus costs + timings (see summary.json costs & timings below)
-score.csv         hit/mismatch/unknown tally (audit mode only)
+score.csv         Hit/Mismatch/Unknown tally (audit mode only)
 ```
 
 ### `summary.json` costs & timings — [LOCKED]
@@ -208,20 +208,20 @@ is recorded in `results_extended.csv` so FALSE is never ambiguous.
 ### Scoring (`score.csv`) — [LOCKED]
 
 - Each inference item is graded as one of:
-  - **hit (h)** — inferred value matches ground truth.
-  - **mismatch (m)** — inferred a wrong value.
-  - **unknown (u)** — we didn't know and didn't guess wrong.
+  - **Hit** — inferred value matches ground truth.
+  - **Mismatch** — inferred a wrong value.
+  - **Unknown** — we didn't know and didn't guess wrong.
 - `score.csv` is a **tally** of item-grade combinations with a `Count` column.
 - Only items that have a supplied ground-truth column are graded/columns.
 - Row count max = `3 ^ (# ground-truth items provided)`; rows with `Count == 0`
 are omitted. (All three ⇒ up to 27 rows; two ⇒ up to 9; etc.)
 - If no ground-truth columns are supplied, `score.csv` is skipped entirely.
-- Schema (only columns for graded items; values ∈ {h, m, u}):
+- Schema (only columns for graded items; values ∈ {Hit, Mismatch, Unknown}):
 
 ```txt
 license_name,license_code_url,copyright,Count
-h,h,h,105
-h,m,u,42
+Hit,Hit,Hit,105
+Hit,Mismatch,Unknown,42
 ...
 ```
 

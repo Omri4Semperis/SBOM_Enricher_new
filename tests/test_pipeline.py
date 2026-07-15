@@ -348,7 +348,7 @@ def test_audit_fixture_triplets_and_score(tmp_path, monkeypatch):
         score_rows = list(csv.DictReader(f))
     assert score_rows
     assert score_rows[0]["Count"] == "1"
-    assert score_rows[0]["license_name"] == "h"
+    assert score_rows[0]["license_name"] == "Hit"
 
 
 def test_non_gt_fixture_no_is_eq_no_score(tmp_path, monkeypatch):

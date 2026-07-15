@@ -1,4 +1,4 @@
-"""Audit scoring: grade h/m/u and write score.csv tally."""
+"""Audit scoring: grade Hit/Mismatch/Unknown and write score.csv tally."""
 
 from __future__ import annotations
 
@@ -22,19 +22,19 @@ _IS_EQ = {
 
 
 def grade_item(inferred: str, is_eq: str) -> str:
-    """h = hit, m = mismatch, u = unknown (didn't know, didn't guess wrong)."""
+    """Hit / Mismatch / Unknown (didn't know, didn't guess wrong)."""
     if (inferred or "").strip() == "UNKNOWN":
-        return "u"
+        return "Unknown"
     if is_eq == "TRUE":
-        return "h"
-    return "m"
+        return "Hit"
+    return "Mismatch"
 
 
 def grade_row(
     result,
     gt_columns: list[str] | tuple[str, ...],
 ) -> dict[str, str]:
-    """Return {gt_col: h|m|u} for each graded item on this result."""
+    """Return {gt_col: Hit|Mismatch|Unknown} for each graded item on this result."""
     grades: dict[str, str] = {}
     for gt in gt_columns:
         if gt not in _INFERRED:
