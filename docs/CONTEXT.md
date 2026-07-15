@@ -10,6 +10,11 @@ that file; optionally compares the enrichment against supplied ground truth.
 A single software dependency to be enriched — one input row, identified by a
 `component_name` and a `purl`.
 
+**Cached Historical Cost**:
+The LLM charges incurred when a cached enrichment was originally produced.
+It is provenance only and is never counted as cost incurred by the current run.
+_Avoid_: saved by cache, cache savings
+
 **purl**:
 The Package URL of a component (e.g. `pkg:npm/%40awesome.me/kit@1.0.277`). The
 canonical, ecosystem-qualified identifier; the primary key for locating the
@@ -27,6 +32,11 @@ fields" (or just "fields" where the context is clear). In code the locked
 order of ground-truth field names is `GT_FIELDS`.
 _Avoid_: element, item — for this meaning.
 
+**Inference Cost**:
+The subset of Run Cost incurred by LLM calls used to produce enrichment,
+including billable attempts. It excludes equality testing, connectivity
+preflight, and other quality assurance.
+
 **Inferred License Name**:
 The license associated with a component, e.g. `MIT`, `GPL-3.0`.
 
@@ -35,8 +45,9 @@ A reachable, downloadable URL to the component's actual LICENSE file, ideally
 from the raw publication of the component.
 
 **Inferred Copyright**:
-The copyright statement found **in the downloaded LICENSE file**. If no file was
-downloaded, copyright cannot be inferred.
+The copyright statement inferred for a component. A statement extracted from
+the downloaded LICENSE file takes precedence over a package-registry author
+fallback, which takes precedence over source-backed web inference.
 
 **Ground Truth**:
 User-supplied `license_name` / `license_code_url` / `copyright` columns in the
@@ -55,6 +66,12 @@ recorded in an `is_eq_*` column.
 The grade for one inferred enrichment field against Ground Truth: **hit**
 (matches), **mismatch** (inferred a wrong value), or **unknown** (didn't
 know, didn't guess wrong).
+
+**Run Cost**:
+The provider charges attributable to component processing in the current run:
+enrichment plus equality testing, but not connectivity preflight. Reusing a
+cached enrichment contributes zero Run Cost.
+_Avoid_: saved cost, cache savings
 
 **Story**:
 A plain-text, human-readable narrative of everything done to enrich one
