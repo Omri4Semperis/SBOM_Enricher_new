@@ -194,3 +194,52 @@ Assumptions: {numbered, or "none"}
 Open questions: {numbered, or "none"}
 Next action: {the next eligible phase per PLAN.md's table, or "plan complete"}
 ```
+
+## Outcome
+
+Objective: Fix S1 — replace the holder-only stray denylist with an
+association-aware guard that rejects a stray holder only when the package is
+NOT of that holder's family; record the decision as ADR 0007.
+
+HEAD: a8caf76 | Branch: master
+
+Files changed:
+- `src/copyright.py`
+- `tests/test_copyright.py`
+- `docs/adr/0007-association-aware-stray-holder.md`
+
+Commands run:
+- `.\.venv\Scripts\python.exe -m pytest -q` (entry) → exit 0, 134 passed
+  (baseline had drifted up from the plan's original "130" because P1 landed
+  first and added 4 tests — not a regression, noted and proceeded).
+- `.\.venv\Scripts\python.exe -m pytest tests/test_copyright.py -q` (T1, T2) →
+  exit 0, 19 passed then 21 passed.
+- `.\.venv\Scripts\python.exe -m py_compile src/copyright.py` (T3) → exit 0,
+  no output; ADR file confirmed with `status: accepted` front-matter.
+- `.\.venv\Scripts\python.exe -m pytest -q` (validation gate) → exit 0, 136
+  passed (≥132 required).
+- Fresh review (subagent, diff `7aa1ef9..a8caf76` + this doc + over-engineering
+  lens) → verdict PASS, no doc-compliance or over-engineering findings, no
+  bugs in the new guard or its call sites.
+
+Test status: full suite green at 136 passed (134 baseline + 2 new);
+`test_copyright.py` green at 21 passed (includes the 2 new tests).
+
+Final `_is_stray_holder` signature:
+`_is_stray_holder(text: str, purl: str = "", lib_name: str = "") -> bool`.
+Both new params are keyword-defaulted, so a bare `_is_stray_holder(text)` call
+(as in `rescore.py`, unmodified by this phase) still parses and returns the
+association-unaware verdict; P3 should pass `purl`/`lib_name` explicitly to
+get the association-aware behavior.
+
+Assumptions:
+1. The AOSP test pair was optional per the doc ("Optional AOSP pair if
+   quick") and was skipped — the two required Go-Authors tests fully cover the
+   Demo and Exit criteria.
+
+Open questions: none.
+
+Next action: P3 (`honest_rescore_and_doc`) is now eligible — its only
+dependency (P2) is `done`. It must update `rescore.py`'s
+`_is_stray_holder(inferred)` call to pass `purl`/`lib_name` per the signature
+above.

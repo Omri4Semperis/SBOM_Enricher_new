@@ -68,7 +68,7 @@ and calls `copyright._is_stray_holder`, whose signature P2 changes.
 | Phase                                                          | Purpose                                            | Depends on | Status  | Baseline | Updated |
 | -                                                              | -                                                  | -          | -       | -        | -       |
 | [P1: harden_download_path](./P1_harden_download_path.md)       | B1+S2+S3+N1: gate host, offload, normalize, log    | -          | done | 1d99bae | 2026-07-16 |
-| [P2: association_aware_holder](./P2_association_aware_holder.md) | S1: association-aware stray-holder guard + ADR 0007 | -          | pending |          |         |
+| [P2: association_aware_holder](./P2_association_aware_holder.md) | S1: association-aware stray-holder guard + ADR 0007 | -          | done | 7aa1ef9 | 2026-07-16 |
 | [P3: honest_rescore_and_doc](./P3_honest_rescore_and_doc.md)   | S4: guard-count-only re-score + doc correction     | P2         | pending |          |         |
 
 ## Test commands
@@ -105,11 +105,19 @@ to this; the count must never drop.
   Any caller passing only `text` will break. The in-repo callers are
   `src/copyright.py` (P2 fixes these) and `ad_hoc_scripts/analysis/rescore.py`
   (P3 must update its call — see Incoming comment below).
-- **Notes:**
+- **Notes:** Done. `_is_stray_holder` final signature:
+  `_is_stray_holder(text: str, purl: str = "", lib_name: str = "") -> bool`
+  (both new params keyword-defaulted, so `rescore.py`'s bare
+  `_is_stray_holder(inferred)` still parses unchanged — but P3 should pass
+  `purl`/`lib_name` explicitly for the association-aware behavior). ADR 0007
+  recorded. Fresh review (subagent) verdict: PASS, no doc-compliance or
+  over-engineering findings. Suite: 136 passed (134 baseline + 2 new),
+  `test_copyright.py`: 21 passed.
 - **Incoming comments:**
   - {seed} [from planner] P3: after P2, update `rescore.py`'s
     `_is_stray_holder(inferred)` call to the new signature; see P2's Outcome for
-    the exact signature.
+    the exact signature. — **confirmed still holds**: signature is
+    `_is_stray_holder(text: str, purl: str = "", lib_name: str = "") -> bool`.
 
 ### P3: honest_rescore_and_doc
 
