@@ -10,7 +10,7 @@ from pathlib import Path
 from cache import read_cache, restore_license_file, write_cache
 from claude_client import infer_license
 from config import Config
-from copyright import extract_copyright
+from copyright import resolve_copyright
 from download import fetch_license_file
 from equality import compare_copyright, compare_name, compare_url_content
 from gpt41_client import Gpt41Client
@@ -122,24 +122,25 @@ async def process_component(
             f"download: failed ({dl.error or 'unknown'}) timing_s={dl_elapsed:.3f}",
         )
 
+    text = ""
     if result.license_file_path is not None:
         text = result.license_file_path.read_text(encoding="utf-8", errors="replace")
-        t2 = time.perf_counter()
-        cr = await extract_copyright(text)
-        # Fakes may still return a plain dict; real extractor returns (dict, CallMeta).
-        if isinstance(cr, tuple):
-            data, result.copyright_meta = cr
-        else:
-            data = cr
-        cr_elapsed = time.perf_counter() - t2
-        result.inferred_copyright = data["copyright"]
-        append_story(
-            run_dir,
-            comp.slug,
-            f"copyright: {data['reasoning']} timing_s={cr_elapsed:.3f}",
-        )
+    t2 = time.perf_counter()
+    cr = await resolve_copyright(
+        text, comp.purl, comp.lib_name, comp.version, model
+    )
+    # Fakes may still return a plain dict; real resolver returns (dict, CallMeta).
+    if isinstance(cr, tuple):
+        data, result.copyright_meta = cr
     else:
-        append_story(run_dir, comp.slug, "copyright: skipped (no license file)")
+        data = cr
+    cr_elapsed = time.perf_counter() - t2
+    result.inferred_copyright = data["copyright"]
+    append_story(
+        run_dir,
+        comp.slug,
+        f"copyright: {data['reasoning']} timing_s={cr_elapsed:.3f}",
+    )
 
     write_cache(cache_write, comp.component_name, result)
     return result

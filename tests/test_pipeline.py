@@ -39,7 +39,7 @@ async def _fake_download(claude_url, purl, dest_dir, slug):
     )
 
 
-async def _fake_copyright(license_text):
+async def _fake_copyright(license_text, purl="", lib_name="", version="", model=""):
     return {
         "copyright": "Copyright (c) 2020 Jane Doe",
         "reasoning": "verbatim notice",
@@ -49,7 +49,7 @@ async def _fake_copyright(license_text):
 def test_mocked_license_lands_in_results_csv(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
-    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
+    monkeypatch.setattr(pipeline, "resolve_copyright", _fake_copyright)
 
     cfg = config.Config(
         input_file_path=FIXTURE,
@@ -94,7 +94,7 @@ def test_mocked_license_lands_in_results_csv(tmp_path, monkeypatch):
 def test_process_records_license_file_path(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
-    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
+    monkeypatch.setattr(pipeline, "resolve_copyright", _fake_copyright)
 
     from input_csv import Component
 
@@ -123,7 +123,7 @@ def test_process_records_license_file_path(tmp_path, monkeypatch):
 def test_empty_purl_noted_in_story(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
-    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
+    monkeypatch.setattr(pipeline, "resolve_copyright", _fake_copyright)
 
     from input_csv import Component
 
@@ -148,7 +148,7 @@ def test_empty_purl_noted_in_story(tmp_path, monkeypatch):
     assert "download: chose" in story
 
 
-def test_no_file_copyright_unknown_extractor_not_called(tmp_path, monkeypatch):
+def test_no_file_still_resolves_copyright(tmp_path, monkeypatch):
     async def fail_download(claude_url, purl, dest_dir, slug):
         return DownloadResult(
             resolved_url="",
@@ -158,10 +158,14 @@ def test_no_file_copyright_unknown_extractor_not_called(tmp_path, monkeypatch):
             attempts=["fail https://example.com"],
         )
 
-    extract = AsyncMock(side_effect=AssertionError("extract_copyright must not run"))
+    async def fake_resolve(license_text, purl, lib_name, version, model):
+        assert license_text == ""
+        return {"copyright": "UNKNOWN", "reasoning": "empty license text"}
+
+    resolve = AsyncMock(side_effect=fake_resolve)
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", fail_download)
-    monkeypatch.setattr(pipeline, "extract_copyright", extract)
+    monkeypatch.setattr(pipeline, "resolve_copyright", resolve)
 
     from input_csv import Component
 
@@ -179,11 +183,11 @@ def test_no_file_copyright_unknown_extractor_not_called(tmp_path, monkeypatch):
     result = asyncio.run(pipeline.process_component(comp, run, "claude-haiku-4-5"))
     assert result.inferred_copyright == "UNKNOWN"
     assert result.license_file_path is None
-    extract.assert_not_awaited()
+    resolve.assert_awaited_once()
     story = (run / "per_component" / comp.slug / pipeline.STORY_FILENAME).read_text(
         encoding="utf-8"
     )
-    assert "copyright: skipped (no license file)" in story
+    assert "copyright: empty license text" in story
 
 
 def test_cache_hit_skips_stages(tmp_path, monkeypatch):
@@ -214,7 +218,7 @@ def test_cache_hit_skips_stages(tmp_path, monkeypatch):
     extract = AsyncMock(side_effect=AssertionError("copyright must not run"))
     monkeypatch.setattr(pipeline, "infer_license", infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", download)
-    monkeypatch.setattr(pipeline, "extract_copyright", extract)
+    monkeypatch.setattr(pipeline, "resolve_copyright", extract)
 
     comp = seed.component
     run = tmp_path / "run"
@@ -243,7 +247,7 @@ def test_cache_hit_skips_stages(tmp_path, monkeypatch):
 def test_cache_write_on_full_success(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
-    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
+    monkeypatch.setattr(pipeline, "resolve_copyright", _fake_copyright)
 
     from cache import read_cache
     from input_csv import Component
@@ -273,12 +277,12 @@ def test_cache_write_on_full_success(tmp_path, monkeypatch):
 
 
 def test_cache_write_skips_unknown_copyright(tmp_path, monkeypatch):
-    async def unknown_copyright(license_text):
+    async def unknown_copyright(license_text, purl="", lib_name="", version="", model=""):
         return {"copyright": "UNKNOWN", "reasoning": "none found"}
 
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
-    monkeypatch.setattr(pipeline, "extract_copyright", unknown_copyright)
+    monkeypatch.setattr(pipeline, "resolve_copyright", unknown_copyright)
 
     from cache import read_cache
     from input_csv import Component
@@ -309,7 +313,7 @@ def test_audit_fixture_triplets_and_score(tmp_path, monkeypatch):
 
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
-    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
+    monkeypatch.setattr(pipeline, "resolve_copyright", _fake_copyright)
     monkeypatch.setattr(equality, "fetch_license_file", _fake_download)
     monkeypatch.setattr(pipeline, "Gpt41Client", lambda: AsyncMock())
 
@@ -354,7 +358,7 @@ def test_audit_fixture_triplets_and_score(tmp_path, monkeypatch):
 def test_non_gt_fixture_no_is_eq_no_score(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
-    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
+    monkeypatch.setattr(pipeline, "resolve_copyright", _fake_copyright)
 
     cfg = config.Config(
         input_file_path=FIXTURE,

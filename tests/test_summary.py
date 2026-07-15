@@ -41,7 +41,7 @@ async def _fake_download(claude_url, purl, dest_dir, slug):
     )
 
 
-async def _fake_copyright(license_text):
+async def _fake_copyright(license_text, purl="", lib_name="", version="", model=""):
     return {
         "copyright": "Copyright (c) 2020 Jane Doe",
         "reasoning": "verbatim notice",
@@ -101,7 +101,7 @@ def test_main_preflight_fail_skips_workers(monkeypatch):
 def test_fixture_run_extended_csv_and_summary(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
     monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
-    monkeypatch.setattr(pipeline, "extract_copyright", _fake_copyright)
+    monkeypatch.setattr(pipeline, "resolve_copyright", _fake_copyright)
 
     cfg = config.Config(
         input_file_path=FIXTURE,
