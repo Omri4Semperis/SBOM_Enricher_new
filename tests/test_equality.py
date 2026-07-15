@@ -135,6 +135,32 @@ def test_url_judge_decides(tmp_path, monkeypatch):
     assert r.meta.billable_calls == 1
 
 
+def test_gt_html_landing_page_unscoreable(tmp_path, monkeypatch):
+    async def fake_fetch(url, purl, dest_dir, slug):
+        if "gt" in url:
+            return DownloadResult(
+                error="download_failed", original_url=url, fail_kind="html"
+            )
+        licenses = Path(dest_dir) / "licenses"
+        licenses.mkdir(parents=True, exist_ok=True)
+        path = licenses / f"{slug}.txt"
+        path.write_bytes(b"ok")
+        return DownloadResult(resolved_url=url, saved_path=path, original_url=url)
+
+    monkeypatch.setattr(equality, "fetch_license_file", fake_fetch)
+    r = asyncio.run(
+        equality.compare_url_content(
+            "https://inf.example/LICENSE",
+            "https://gt.example/LICENSE",
+            tmp_path,
+            "pkg",
+        )
+    )
+    assert r.verdict == "UNSCOREABLE"
+    assert r.reason == "gt_not_a_file"
+    assert r.meta.billable_calls == 0
+
+
 def test_gt_url_download_fail(tmp_path, monkeypatch):
     async def fake_fetch(url, purl, dest_dir, slug):
         if "gt" in url:

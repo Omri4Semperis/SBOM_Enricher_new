@@ -22,7 +22,7 @@ _TRAILING_PUNCT_RE = re.compile(r"[\s.,;:]+$")
 
 @dataclass(frozen=True)
 class EqResult:
-    verdict: str  # TRUE | FALSE
+    verdict: str  # TRUE | FALSE | UNSCOREABLE (URL-only, deterministic, not judge-issued)
     reason: str
     meta: CallMeta = field(default_factory=CallMeta)
 
@@ -126,6 +126,8 @@ async def compare_url_content(
         return EqResult("FALSE", "inferred_url_download_failed")
     gt = await fetch_license_file((gt_url or "").strip(), "", dest_dir, f"{slug}__eq_gt")
     if not gt.ok:
+        if gt.fail_kind == "html":
+            return EqResult("UNSCOREABLE", "gt_not_a_file")
         return EqResult("FALSE", "gt_url_download_failed")
 
     a = inf.saved_path.read_bytes()
