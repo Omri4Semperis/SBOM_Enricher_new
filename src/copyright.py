@@ -29,13 +29,32 @@ def _is_placeholder_copyright(text: str) -> bool:
     return bool(_PLACEHOLDER_TOKEN_RE.search(text))
 
 
-_STRAY_HOLDERS = frozenset({"the go authors", "the android open source project"})
+# Each rule: a lowercased holder phrase + a predicate for "is this package of
+# that holder's family". The holder is stray only when its phrase is present
+# AND the package is NOT of that family — e.g. "The Go Authors" is legitimate
+# on a pkg:golang/ component but stray anywhere else.
+_STRAY_HOLDER_RULES = (
+    ("the go authors", lambda purl, _lib: purl.strip().lower().startswith("pkg:golang/")),
+    (
+        "the android open source project",
+        lambda purl, lib: "android" in purl.lower() or "android" in lib.lower(),
+    ),
+)
 
 
-def _is_stray_holder(text: str) -> bool:
-    """Known generic upstream holder unrelated to the package being resolved."""
+def _is_stray_holder(text: str, purl: str = "", lib_name: str = "") -> bool:
+    """Generic upstream holder unrelated to the package being resolved.
+
+    Reject-only: a holder phrase whose family predicate matches is legitimate,
+    never promoted — this never turns a Mismatch into a Hit.
+    """
     lowered = (text or "").lower()
-    return any(phrase in lowered for phrase in _STRAY_HOLDERS)
+    purl = purl or ""
+    lib_name = lib_name or ""
+    return any(
+        phrase in lowered and not is_of_family(purl, lib_name)
+        for phrase, is_of_family in _STRAY_HOLDER_RULES
+    )
 
 
 def _unknown(reason: str) -> dict:
@@ -133,7 +152,7 @@ async def resolve_copyright(
     """File → npm author → Claude web → UNKNOWN. Never overwrite an earlier success."""
     file_data, file_meta = await extract_copyright(license_text)
     if file_data["copyright"].upper() != "UNKNOWN" and not _is_stray_holder(
-        file_data["copyright"]
+        file_data["copyright"], purl, lib_name
     ):
         return file_data, file_meta
 
@@ -149,9 +168,9 @@ async def resolve_copyright(
         not copyright_text
         or copyright_text.upper() == "UNKNOWN"
         or _is_placeholder_copyright(copyright_text)
-        or _is_stray_holder(copyright_text)
+        or _is_stray_holder(copyright_text, purl, lib_name)
     ):
-        if copyright_text and _is_stray_holder(copyright_text):
+        if copyright_text and _is_stray_holder(copyright_text, purl, lib_name):
             reason = "stray upstream holder"
         elif copyright_text and _is_placeholder_copyright(copyright_text):
             reason = "placeholder template copyright"
