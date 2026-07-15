@@ -20,6 +20,13 @@ _Avoid_: package id, coordinate
 The act of deriving the three inferred fields (license name, license-file URL,
 copyright) for a component. The product of a run.
 
+**Enrichment Field**:
+One of the three inferred outputs of enrichment — license name, license-file
+URL (with its downloaded file), or copyright. Collectively "the enrichment
+fields" (or just "fields" where the context is clear).
+_Avoid_: element, item — for this meaning. (The `GT_ITEMS` identifier in code
+is legacy and left unchanged; renaming it is churn with no behavior change.)
+
 **Inferred License Name**:
 The license associated with a component, e.g. `MIT`, `GPL-3.0`.
 
