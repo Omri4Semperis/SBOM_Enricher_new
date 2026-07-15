@@ -21,7 +21,12 @@ import requests
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 from copyright import _is_stray_holder  # noqa: E402
-from download import looks_like_html, nuget_candidates, rewrite_viewer_to_raw  # noqa: E402
+from download import (  # noqa: E402
+    is_generic_template,
+    looks_like_html,
+    nuget_candidates,
+    rewrite_viewer_to_raw,
+)
 from scoring import grade_item  # noqa: E402
 
 RUN = REPO / "runs" / "20260715_144424_ClaudeOpu-4-8_380"
@@ -46,20 +51,21 @@ def load() -> list[dict]:
         return list(csv.DictReader(f))
 
 
-def probe_gt_content_type(gt_url: str) -> str:
-    """Live probe: 'html' | 'ok' | 'error'. Mirrors the fetch signal `_try_one`
-    uses (viewer rewrite + `looks_like_html`), without the retry/disk-write
-    machinery a full `fetch_license_file` call would need for a read-only check."""
+def gt_is_html_landing(gt_url: str) -> bool:
+    """Would production's fetch flag this GT URL `fail_kind='html'` (→ Unscoreable)?
+    Mirrors `_try_one`'s order exactly: viewer rewrite, generic-template reject
+    (→ 'template', NOT html), then the HTML body/content-type sniff. Skips the
+    retry/disk-write machinery a full `fetch_license_file` needs for this read."""
     url = rewrite_viewer_to_raw((gt_url or "").strip())
-    if not url:
-        return "error"
+    if not url or is_generic_template(url):
+        return False
     try:
         resp = requests.get(url, timeout=FETCH_TIMEOUT_S)
     except requests.RequestException:
-        return "error"
+        return False
     if resp.status_code != 200 or not resp.content:
-        return "error"
-    return "html" if looks_like_html(resp.content, resp.headers.get("Content-Type", "")) else "ok"
+        return False
+    return looks_like_html(resp.content, resp.headers.get("Content-Type", ""))
 
 
 def adjusted_url_grade(row: dict) -> tuple[str, bool]:
@@ -71,7 +77,7 @@ def adjusted_url_grade(row: dict) -> tuple[str, bool]:
     probed = False
     if row.get("eq_license_code_url_reason", "") == "gt_url_download_failed":
         probed = True
-        if probe_gt_content_type(row.get("license_code_url", "")) == "html":
+        if gt_is_html_landing(row.get("license_code_url", "")):
             is_eq = "UNSCOREABLE"
     return grade_item(inferred, is_eq), probed
 
