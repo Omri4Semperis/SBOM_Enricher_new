@@ -27,6 +27,7 @@ from download import (  # noqa: E402
     nuget_candidates,
     rewrite_viewer_to_raw,
 )
+from input_csv import parse_component_name  # noqa: E402
 from scoring import grade_item  # noqa: E402
 
 RUN = REPO / "runs" / "20260715_144424_ClaudeOpu-4-8_380"
@@ -82,13 +83,16 @@ def adjusted_url_grade(row: dict) -> tuple[str, bool]:
     return grade_item(inferred, is_eq), probed
 
 
-def adjusted_copyright_grade(row: dict) -> tuple[str, bool]:
-    """Real `grade_item`; a P3 stray-holder is rejected before `resolve_copyright`
-    ever emits it, so simulate that rejection by blanking it before grading."""
+def copyright_guard_triggered(row: dict) -> bool:
+    """Whether the row's inferred copyright trips the association-aware
+    stray-holder guard. Reject-only: production continues through the npm +
+    web fallback chain after a rejection, so this does not determine the
+    row's final grade — count the trigger, don't simulate a grade."""
     inferred = row.get("inferred_copyright", "")
-    is_eq = row.get("is_eq_copyright", "") or ""
-    stray = bool(inferred.strip()) and _is_stray_holder(inferred)
-    return grade_item("" if stray else inferred, is_eq), stray
+    if not inferred.strip():
+        return False
+    lib_name, _ = parse_component_name(row.get("component_name", ""))
+    return _is_stray_holder(inferred, row.get("purl", ""), lib_name)
 
 
 def nuget_resolves_now(purl: str) -> bool:
@@ -144,19 +148,22 @@ def main() -> None:
     movement_table(out, "license_code_url", raw_url, adj_url, len(rows))
     out(f"  ({url_probes} GT URLs live content-type-probed)\n")
 
-    # ---- copyright: raw vs adjusted ----
-    raw_cp = Counter(grades(r).get("copyright", "?") for r in rows)
-    adj_cp = Counter()
-    stray_rows = 0
-    for r in rows:
-        if grades(r).get("copyright") != "Mismatch":
-            adj_cp[grades(r).get("copyright", "?")] += 1
-            continue
-        grade, stray = adjusted_copyright_grade(r)
-        stray_rows += stray
-        adj_cp[grade] += 1
-    movement_table(out, "copyright", raw_cp, adj_cp, len(rows))
-    out(f"  ({stray_rows} rows rejected by the stray-holder guard)\n")
+    # ---- copyright: guard-trigger count only. The guard is reject-only —
+    # production continues through the npm + web fallback chain after a
+    # rejection — so this offline pass cannot assert a resulting grade for
+    # these rows; no movement table. ----
+    mismatch_cp = [r for r in rows if grades(r).get("copyright") == "Mismatch"]
+    stray_rows = sum(1 for r in mismatch_cp if copyright_guard_triggered(r))
+    out("## copyright")
+    out(
+        f"  {stray_rows} / {len(mismatch_cp)} raw-Mismatch rows carry a holder the "
+        "stray-holder guard rejects."
+    )
+    out(
+        "  Production then continues through npm + web fallbacks, so this "
+        "offline pass does not determine their final grade "
+        "(Hit/Mismatch/Unknown).\n"
+    )
 
     # ---- NuGet fallback recall: empty-URL NuGet rows only (informational —
     # frozen run's inferred URL stays empty; this measures fallback reach, not
