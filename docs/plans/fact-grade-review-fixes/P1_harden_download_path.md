@@ -201,6 +201,26 @@ Do not, even if it seems better:
   alternative in ADR 0008).
 - Do not touch `_is_stray_holder` or `rescore.py` — P2/P3 own those.
 
+## Outcome
+
+Objective: Fix the four `src/download.py` findings (B1 blocker, S2/S3
+should-fixes, N1 nit) in one pass and record the B1 fail-closed host policy
+as ADR 0008.
+HEAD: fe1d4d5 | Branch: master
+Files changed: docs/adr/0008-nuget-repo-github-host-gate.md,
+src/download.py, tests/test_download.py
+Commands run:
+- `pytest tests/test_download.py -q` → exit 0, 26 passed (22 baseline + 4 new: T1 non-GitHub-host, T2 version-normalize, T3 offload-dispatch, T4 lookup-failure log).
+- `pytest -q` (full suite) → exit 0, 134 passed (130 baseline + 4 new; meets the ≥134 gate).
+- `py_compile src/download.py` → exit 0.
+- Fresh review (generalPurpose subagent, readonly, given only `git diff 1d99bae..HEAD`, this doc, and the ponytail-review tag definitions) → verdict PASS; no doc-compliance violations, no Anti-goal violations, no Files→Touch violations, over-engineering lens found nothing to cut ("Lean already").
+Test status: full suite 134 passed, 0 failed; test_download.py 26 passed, 0 failed.
+Assumptions:
+1. Each of T1–T4 was implemented then committed individually (rather than one combined commit) to match the doc's per-task "Verify, then commit" cadence.
+2. T3's regression test uses the doc's explicitly-approved simpler option (assert `nuget_candidates` was dispatched via a monkeypatched `asyncio.to_thread`) rather than a wall-clock race, since the doc names both as acceptable and prefers "the simpler ... that reliably passes."
+Open questions: none.
+Next action: P2 (association_aware_holder) is the next eligible phase — no dependencies, Status `pending`. P3 remains blocked on P2.
+
 ## If blocked
 
 Set this phase's Status to `blocked` in `PLAN.md`'s table (fill Baseline and

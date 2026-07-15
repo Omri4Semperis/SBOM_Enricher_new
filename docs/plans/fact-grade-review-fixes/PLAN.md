@@ -67,7 +67,7 @@ and calls `copyright._is_stray_holder`, whose signature P2 changes.
 
 | Phase                                                          | Purpose                                            | Depends on | Status  | Baseline | Updated |
 | -                                                              | -                                                  | -          | -       | -        | -       |
-| [P1: harden_download_path](./P1_harden_download_path.md)       | B1+S2+S3+N1: gate host, offload, normalize, log    | -          | pending |          |         |
+| [P1: harden_download_path](./P1_harden_download_path.md)       | B1+S2+S3+N1: gate host, offload, normalize, log    | -          | done | 1d99bae | 2026-07-16 |
 | [P2: association_aware_holder](./P2_association_aware_holder.md) | S1: association-aware stray-holder guard + ADR 0007 | -          | pending |          |         |
 | [P3: honest_rescore_and_doc](./P3_honest_rescore_and_doc.md)   | S4: guard-count-only re-score + doc correction     | P2         | pending |          |         |
 
@@ -91,7 +91,11 @@ to this; the count must never drop.
   (`str -> list[str]`) — only its internals change. P3 (which imports it) is
   unaffected by P1. After P1, `nuget_candidates` returns `[]` for a nuspec whose
   `<repository url>` is not on `github.com`/`www.github.com`.
-- **Notes:**
+- **Notes:** Done. B1/S2/S3/N1 fixed in `src/download.py` (one commit per
+  task), ADR 0008 recorded. Fresh review (subagent) verdict: PASS, no
+  doc-compliance or over-engineering findings. Suite: 134 passed (130
+  baseline + 4 new), `test_download.py`: 26 passed. `nuget_candidates`
+  signature confirmed unchanged — P3 unaffected.
 - **Incoming comments:**
 
 ### P2: association_aware_holder
