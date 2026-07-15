@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import unquote, urlsplit, urlunsplit
@@ -106,6 +107,63 @@ def npm_candidates(purl: str) -> list[str]:
 
     return [
         f"https://unpkg.com/{package_name}@{version}/{filename}"
+        for filename in NPM_LICENSE_FILENAMES
+    ]
+
+
+def nuget_candidates(purl: str) -> list[str]:
+    """Raw LICENSE candidate URLs from a pkg:nuget purl's nuspec <repository url>.
+
+    Fail-closed: any network/parse issue, or a nuspec with only an SPDX
+    expression or legacy licenseUrl (no <repository url>), returns []. Never
+    fabricates a URL from an SPDX id.
+    """
+    cleaned = purl.strip()
+    if not cleaned.lower().startswith("pkg:nuget/"):
+        return []
+
+    remainder = cleaned[len("pkg:nuget/") :]
+    remainder = remainder.split("?", 1)[0].split("#", 1)[0]
+    if "@" not in remainder:
+        return []
+
+    name_part, _, version = remainder.rpartition("@")
+    package_id = unquote(name_part).strip()
+    version = version.strip()
+    if not package_id or not version:
+        return []
+
+    id_lower = package_id.lower()
+    nuspec_url = (
+        f"https://api.nuget.org/v3-flatcontainer/{id_lower}/{version}/{id_lower}.nuspec"
+    )
+    try:
+        response = requests.get(nuspec_url, timeout=FETCH_TIMEOUT_S)
+    except Exception:
+        return []
+    if response.status_code != 200:
+        return []
+
+    try:
+        root = ET.fromstring(response.content)
+    except ET.ParseError:
+        return []
+
+    repo_url = ""
+    for elem in root.iter():
+        if elem.tag.rsplit("}", 1)[-1] == "repository":
+            repo_url = (elem.get("url") or "").strip()
+            break
+    if repo_url.endswith(".git"):
+        repo_url = repo_url[: -len(".git")]
+    segments = [s for s in urlsplit(repo_url).path.split("/") if s]
+    if len(segments) < 2:
+        return []
+    owner, repo = segments[0], segments[1]
+
+    # ponytail: HEAD ref, pin to tag if version skew bites
+    return [
+        f"https://raw.githubusercontent.com/{owner}/{repo}/HEAD/{filename}"
         for filename in NPM_LICENSE_FILENAMES
     ]
 

@@ -8,6 +8,7 @@ from download import (
     is_generic_template,
     looks_like_html,
     npm_candidates,
+    nuget_candidates,
     rewrite_viewer_to_raw,
 )
 
@@ -66,6 +67,56 @@ def test_candidates_scoped_npm():
 def test_candidates_empty_or_non_npm():
     assert npm_candidates("") == []
     assert npm_candidates("pkg:pypi/requests@2.0") == []
+
+
+_NUSPEC_WITH_REPO = b"""<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>Newtonsoft.Json</id>
+    <repository type="git" url="https://github.com/JamesNK/Newtonsoft.Json.git" />
+    <license type="expression">MIT</license>
+  </metadata>
+</package>
+"""
+
+_NUSPEC_SPDX_ONLY = b"""<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>Some.Package</id>
+    <license type="expression">MIT</license>
+  </metadata>
+</package>
+"""
+
+
+def test_nuget_candidates_repo(monkeypatch):
+    seen = []
+
+    def fake_get(url, timeout=None):
+        seen.append(url)
+        return _ok_response(_NUSPEC_WITH_REPO, "application/xml")
+
+    monkeypatch.setattr("download.requests.get", fake_get)
+
+    urls = nuget_candidates("pkg:nuget/Newtonsoft.Json@13.0.3")
+    assert (
+        seen[0]
+        == "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.3/newtonsoft.json.nuspec"
+    )
+    assert urls[0] == "https://raw.githubusercontent.com/JamesNK/Newtonsoft.Json/HEAD/LICENSE"
+
+
+def test_nuget_candidates_spdx_only_empty(monkeypatch):
+    monkeypatch.setattr(
+        "download.requests.get",
+        lambda url, timeout=None: _ok_response(_NUSPEC_SPDX_ONLY, "application/xml"),
+    )
+    assert nuget_candidates("pkg:nuget/Some.Package@1.0.0") == []
+
+
+def test_nuget_candidates_non_nuget():
+    assert nuget_candidates("") == []
+    assert nuget_candidates("pkg:npm/lodash@4.17.21") == []
 
 
 def _ok_response(body: bytes = b"MIT License\n", content_type: str = "text/plain"):
