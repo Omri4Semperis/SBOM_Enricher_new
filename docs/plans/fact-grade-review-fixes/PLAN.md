@@ -69,7 +69,7 @@ and calls `copyright._is_stray_holder`, whose signature P2 changes.
 | -                                                              | -                                                  | -          | -       | -        | -       |
 | [P1: harden_download_path](./P1_harden_download_path.md)       | B1+S2+S3+N1: gate host, offload, normalize, log    | -          | done | 1d99bae | 2026-07-16 |
 | [P2: association_aware_holder](./P2_association_aware_holder.md) | S1: association-aware stray-holder guard + ADR 0007 | -          | done | 7aa1ef9 | 2026-07-16 |
-| [P3: honest_rescore_and_doc](./P3_honest_rescore_and_doc.md)   | S4: guard-count-only re-score + doc correction     | P2         | in progress | cb10194 | 2026-07-16 |
+| [P3: honest_rescore_and_doc](./P3_honest_rescore_and_doc.md)   | S4: guard-count-only re-score + doc correction     | P2         | done | cb10194 | 2026-07-16 |
 
 ## Test commands
 
@@ -139,7 +139,14 @@ to this; the count must never drop.
   self-judge the   criterion satisfied. **Update:** user reviewed and ruled the grep's
   intent was to catch the false copyright claim, not the unrelated true
   `license_code_url` sentence — directed treating this single finding as
-  satisfied. Un-blocked; resuming T2 commit and the Validation gate.
+  satisfied. Un-blocked; T2 committed. **Done.** `rescore.py`'s copyright
+  section now reports only the guard-trigger count (`copyright_guard_triggered`,
+  no simulated grade), `_is_stray_holder` call updated to P2's signature. The
+  analysis doc's false "20 of 78 → Unknown" claim and matching predictions-table
+  row corrected to describe the guard as reject-only, without inventing a new
+  count. Fresh review (subagent) verdict: PASS, no doc-compliance or
+  over-engineering findings. Suite: 136 passed (unchanged from P2's exit
+  state — this phase adds no tests).
 - **Incoming comments:**
 
 ## On completion

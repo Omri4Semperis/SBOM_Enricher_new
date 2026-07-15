@@ -209,6 +209,27 @@ out-of-scope sentence — directed the executor to treat this single finding
 (the leftover `license_code_url` match) as satisfied and continue. Phase
 un-blocked; proceeding with T2 commit and the Validation gate.
 
+## Outcome
+Objective: Stop the offline re-score from asserting a resulting grade for
+stray-holder copyright rows (report only the guard-trigger count) and correct
+the false "20 of 78 → Unknown" claim in the generated analysis doc; update the
+`_is_stray_holder` call to P2's new signature.
+HEAD: 21180b1 | Branch: master
+Files changed: ad_hoc_scripts/analysis/rescore.py,
+docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md,
+docs/plans/fact-grade-review-fixes/P3_honest_rescore_and_doc.md,
+docs/plans/fact-grade-review-fixes/PLAN.md
+Commands run:
+- `py_compile ad_hoc_scripts/analysis/rescore.py` → exit 0, no output.
+- `Select-String -Path docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md -Pattern "move to .Unknown."` → one match, line 55, in the out-of-scope `license_code_url` section (pre-existing, unrelated, true statement) — accepted per the user's ruling (see Blocked/Resolution above); the copyright section's false claim is gone.
+- `pytest -q` → exit 0, 136 passed (unchanged from P2's exit state; this phase adds no tests).
+- Fresh review (subagent, generalPurpose, given the diff `cb10194..HEAD` on the two Touch files, this doc, and the ponytail-review tag lens): verdict PASS — no doc-compliance or over-engineering findings, no lens objections.
+Test status: `pytest -q` → 136 passed, exit 0.
+Assumptions: none.
+Open questions:
+1. The Exit criteria's `Select-String` pattern is broader than intended (matches an unrelated true sentence outside this phase's scope) — a planning-doc imprecision, not a code issue. No action taken to narrow it since the phase is now terminal/archived; noted here for the historical record only.
+Next action: plan complete — every phase (P1, P2, P3) shows `done`; proceeding to `PLAN.md`'s On completion (stamp + archive).
+
 ## If blocked
 
 Set this phase's Status to `blocked` in `PLAN.md`'s table (fill Baseline and
