@@ -140,6 +140,22 @@ def test_nuget_candidates_non_github_repo_empty(monkeypatch):
     assert nuget_candidates("pkg:nuget/Some.Package@1.0.0") == []
 
 
+def test_nuget_version_normalized(monkeypatch):
+    seen = []
+
+    def fake_get(url, timeout=None):
+        seen.append(url)
+        return _ok_response(_NUSPEC_WITH_REPO, "application/xml")
+
+    monkeypatch.setattr("download.requests.get", fake_get)
+
+    nuget_candidates("pkg:nuget/Some.Package@1.0.0.0")
+    assert seen[-1].split("/")[-2] == "1.0.0"
+
+    nuget_candidates("pkg:nuget/Some.Package@2.1.0-RC1")
+    assert seen[-1].split("/")[-2] == "2.1.0-rc1"
+
+
 def _ok_response(body: bytes = b"MIT License\n", content_type: str = "text/plain"):
     resp = MagicMock()
     resp.status_code = 200

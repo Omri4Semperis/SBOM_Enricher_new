@@ -111,6 +111,18 @@ def npm_candidates(purl: str) -> list[str]:
     ]
 
 
+def _normalize_nuget_version(version: str) -> str:
+    """NuGet-normalize a version for the flat-container URL (lowercase, no
+    build metadata, no leading zeros, no trailing zero 4th segment)."""
+    value = unquote(version).strip().split("+", 1)[0].lower()
+    numeric, sep, prerelease = value.partition("-")
+    segments = [str(int(s)) if s.isdigit() else s for s in numeric.split(".")]
+    if len(segments) == 4 and segments[3] == "0":
+        segments = segments[:3]
+    numeric = ".".join(segments)
+    return numeric + sep + prerelease
+
+
 def nuget_candidates(purl: str) -> list[str]:
     """Raw LICENSE candidate URLs from a pkg:nuget purl's nuspec <repository url>.
 
@@ -134,8 +146,9 @@ def nuget_candidates(purl: str) -> list[str]:
         return []
 
     id_lower = package_id.lower()
+    version_for_url = _normalize_nuget_version(version)
     nuspec_url = (
-        f"https://api.nuget.org/v3-flatcontainer/{id_lower}/{version}/{id_lower}.nuspec"
+        f"https://api.nuget.org/v3-flatcontainer/{id_lower}/{version_for_url}/{id_lower}.nuspec"
     )
     try:
         response = requests.get(nuspec_url, timeout=FETCH_TIMEOUT_S)
