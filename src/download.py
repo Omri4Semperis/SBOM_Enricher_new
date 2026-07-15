@@ -331,10 +331,14 @@ async def fetch_license_file(
             return result
 
     nuget_cands = await asyncio.to_thread(nuget_candidates, purl)
-    if not (purl or "").strip():
+    stripped_purl = (purl or "").strip()
+    if not stripped_purl:
         attempts.append("empty purl: skip nuget fallback")
     elif not nuget_cands:
-        attempts.append("non-nuget purl: skip nuget fallback")
+        if stripped_purl.lower().startswith("pkg:nuget/"):
+            attempts.append("nuget: no candidates (nuspec/repo lookup failed)")
+        else:
+            attempts.append("non-nuget purl: skip nuget fallback")
 
     for candidate in nuget_cands:
         path, kind = await _try_one(candidate, dest_dir, slug, attempts)

@@ -354,6 +354,24 @@ def test_fetch_nuget_offloaded_from_loop(tmp_path, monkeypatch):
     assert nuget_candidates in calls, "nuget_candidates was not dispatched via asyncio.to_thread"
 
 
+def test_fetch_nuget_purl_no_candidates_logs_lookup_failure(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "download.requests.get", lambda url, timeout=None: _status_response(404)
+    )
+    (tmp_path / "per_component" / "some.package@1.0.0").mkdir(parents=True)
+
+    result = asyncio.run(
+        fetch_license_file(
+            "", "pkg:nuget/Some.Package@1.0.0", tmp_path, "some.package@1.0.0"
+        )
+    )
+    assert not result.ok
+    assert any(
+        "nuget: no candidates (nuspec/repo lookup failed)" in a for a in result.attempts
+    )
+    assert not any("non-nuget purl" in a for a in result.attempts)
+
+
 def test_fetch_rejects_generic_template(tmp_path, monkeypatch):
     called = []
 
