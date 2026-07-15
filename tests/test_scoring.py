@@ -24,6 +24,9 @@ def test_grade_item_hmu():
     assert scoring.grade_item("MIT", "FALSE") == "Mismatch"
     assert scoring.grade_item("UNKNOWN", "FALSE") == "Unknown"
     assert scoring.grade_item("UNKNOWN", "TRUE") == "Unknown"
+    assert scoring.grade_item("", "FALSE") == "Unknown"
+    assert scoring.grade_item("   ", "TRUE") == "Unknown"
+    assert scoring.grade_item("https://x", "UNSCOREABLE") == "Unscoreable"
 
 
 def test_mixed_tally(tmp_path):

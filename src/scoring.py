@@ -22,9 +22,11 @@ _IS_EQ = {
 
 
 def grade_item(inferred: str, is_eq: str) -> str:
-    """Hit / Mismatch / Unknown (didn't know, didn't guess wrong)."""
-    if (inferred or "").strip() == "UNKNOWN":
+    """Hit / Mismatch / Unknown (didn't know, didn't guess wrong) / Unscoreable."""
+    if not (inferred or "").strip() or inferred.strip() == "UNKNOWN":
         return "Unknown"
+    if is_eq == "UNSCOREABLE":
+        return "Unscoreable"
     if is_eq == "TRUE":
         return "Hit"
     return "Mismatch"
