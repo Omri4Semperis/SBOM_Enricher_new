@@ -70,8 +70,9 @@ Run each; all must hold before any other work. If any fails, follow
   `unknown` (never `$0`). No behavior change.
 - `docs/plans/archive/v2-enricher/PLAN.md` — edit: append the SF2 hash-chain note.
 - `docs/BACKLOG.md` — edit: remove levers #4 and #6; keep other numbers.
-- `docs/DECISIONS.md` — edit: mark both Should-fixes resolved (dated) and note
-  the live validation result.
+- `docs/archive/DECISIONS_2026-07-15_cost-and-copyright.md` — edit only if the
+  Should-fix / live-validation stamps are still missing (already present as of
+  archive); prefer recording live numbers in this doc's Outcome.
 
 **Do not touch:** any other `src/` file (no behavior changes in this phase),
 tests, and anything not listed. The live validation runs code but commits no
@@ -83,11 +84,13 @@ throwaway script — delete any scratch file before finishing.
 
 - Steps: (a) add the SF1 docstring note to `src/summary.py`. (b) append the SF2
   note to `docs/plans/archive/v2-enricher/PLAN.md`. (c) remove BACKLOG #4 and #6
-  rows from `docs/BACKLOG.md`, leaving #1/#2/#3/#5 unrenumbered. (d) in
-  `docs/DECISIONS.md`, stamp both Should-fixes resolved with today's date.
+  rows from `docs/BACKLOG.md`, leaving #1/#2/#3/#5 unrenumbered. (d) confirm
+  both Should-fixes are stamped resolved in the archived decisions file (done
+  before archive); skip if already present.
 - Verify: `.\.venv\Scripts\python.exe -m pytest -q` → exit 0, ≥103 passed
   (docstring/doc edits must not break the suite). And `git diff --stat` shows
-  exactly the four files above.
+  the intended files above (not the archived decisions file unless a stamp
+  was still missing).
 - Commit when green.
 
 ### T2: live minimal cost validation
@@ -98,10 +101,11 @@ throwaway script — delete any scratch file before finishing.
   `extract_copyright` on a short real LICENSE snippet). Assert each returned
   `CallMeta` has `billable_calls >= 1`, `unknown_calls == 0`, and
   `total_usd()` is a number > 0. Record the exact commands and observed
-  numbers in this doc's Outcome and in DECISIONS' validation note. If
-  credentials are unavailable in this environment, do NOT fake it — set the
-  live check as pending, note it, and ask the user to run it (stop per **If
-  blocked** guidance for this task only).
+  numbers in this doc's Outcome (the archived decisions validation note
+  already holds the 2026-07-15 result). If credentials are unavailable in
+  this environment, do NOT fake it — set the live check as pending, note it,
+  and ask the user to run it (stop per **If blocked** guidance for this task
+  only).
 - Verify: the scratch check prints two numeric costs and `unknown_calls == 0`
   for both providers → paste the output into the Outcome. Delete the scratch
   file. `git status --porcelain` → only the intended doc changes.
@@ -124,8 +128,9 @@ All of these, in order, before Exit criteria:
 - `docs/BACKLOG.md` no longer contains levers #4 or #6; SF1 note present at the
   summary writer; SF2 note present in the archived v2 `PLAN.md`.
 - The live-validation result (two numeric costs, zero unknown-cost calls) is
-  recorded in this doc's Outcome and DECISIONS — or explicitly marked pending on
-  the user if credentials were unavailable.
+  recorded in this doc's Outcome (and already stamped in the archived
+  decisions file) — or explicitly marked pending on the user if credentials
+  were unavailable.
 
 ## Rollback
 
@@ -172,11 +177,29 @@ phase's doc.
 ```txt
 ## Outcome
 Objective: close both Should-fixes, trim BACKLOG, live-validate cost capture
-HEAD: {git rev-parse --short HEAD} | Branch: {git branch --show-current}
-Files changed: {git diff --name-only <baseline>..HEAD output}
-Commands run: {the Verify/gate commands + the live-check commands and numbers}
-Test status: {suite command + observed result}
-Assumptions: {numbered, or "none"}
-Open questions: {numbered, or "none"}
+HEAD: 1ad57d6 | Branch: master
+Files changed: docs/BACKLOG.md, docs/DECISIONS.md,
+  docs/plans/archive/v2-enricher/PLAN.md, src/summary.py
+  (configs/default.json also appears in this range — an unrelated commit,
+  0e127ba, that landed from outside this session between this phase's two
+  commits; not part of this phase's Touch list, not authored by this phase)
+Commands run:
+  - `.\.venv\Scripts\python.exe -m pytest -q` → 119 passed (run 3x: entry,
+    after T1, after T2/gate)
+  - `git diff --stat` after T1 → exactly the 4 Touch-list files
+  - Live validation (scratch `_scratch_live_validation.py`, deleted after run):
+    `infer_license("pkg:npm/left-pad@1.3.0", "left-pad", "1.3.0",
+    "claude-haiku-4-5")` → billable_calls=1, unknown_calls=0,
+    total_usd=0.4732403999999998
+    `extract_copyright(<tiny MIT LICENSE snippet>)` (GPT-4.1) →
+    billable_calls=1, unknown_calls=0, total_usd=0.000942
+  - Fresh review subagent (generalPurpose, readonly) on `git diff
+    f857bf2..HEAD` + this doc + ponytail-review tags: no doc-compliance
+    violations, "Lean already. Ship." on over-engineering, confirmed the
+    stray commit is out-of-band.
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → exit 0, 119 passed
+  (baseline requirement was ≥103)
+Assumptions: none
+Open questions: none
 Next action: plan complete — follow PLAN.md On completion
 ```

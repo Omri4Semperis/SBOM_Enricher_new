@@ -25,7 +25,9 @@ including billable attempts later rejected by parsing; (2) rolls that up into a
 reshaped `summary.json`; (3) restores the copyright fallback chain (npm author,
 then Claude web); and (4) records Cached Historical Cost for provenance. The
 audience is the operator reading a run's cost and coverage after the fact. All
-requirements are the signed decisions in `docs/DECISIONS.md`.
+requirements are the signed decisions archived at
+`docs/archive/DECISIONS_2026-07-15_cost-and-copyright.md` (now embodied in
+these phase docs).
 
 ## Context
 
@@ -33,10 +35,11 @@ requirements are the signed decisions in `docs/DECISIONS.md`.
   sbom-enricher agent/SBOM_Enricher_new`. Branch `master`. Python 3.13,
   stdlib-first, run as `python src/main.py` (auto-loads `configs/default.json`).
   Flat `src/` package; tests in `tests/`. No pandas (stdlib `csv`).
-- **The signed contract is `docs/DECISIONS.md`.** Read it in full before any
-  phase — it is the source of truth for cost semantics, the copyright
-  precedence, the `summary.json` shape, and the validation rules. Vocabulary
-  (Run Cost, Inference Cost, Cached Historical Cost) is in `docs/CONTEXT.md`.
+- **The signed contract** is archived at
+  `docs/archive/DECISIONS_2026-07-15_cost-and-copyright.md` and decomposed
+  into these phase docs — cost semantics, copyright precedence, `summary.json`
+  shape, and validation rules. Vocabulary (Run Cost, Inference Cost, Cached
+  Historical Cost) is in `docs/CONTEXT.md`.
 - **Two live LLM providers.** Claude via local `claude` CLI subprocess
   (`src/claude_client.py`, license inference; the one configurable model).
   GPT-4.1 via fixed Azure deployment (`src/gpt41_client.py`, copyright
@@ -73,7 +76,7 @@ captured at phase start. Updated is the date of the last status change. -->
 | [P3: copyright_fallback_chain](./P3_copyright_fallback_chain.md)        | npm author → Claude web copyright fallback, cost into copyright bucket | P2       | done | ef673b0 | 2026-07-15 |
 | [P4: summary_run_costs_and_schema](./P4_summary_run_costs_and_schema.md)| Real `summary.json` cost rollup + `run_info` grouping + drop saved_by_cache | P3   | done | b6b5394 | 2026-07-15 |
 | [P5: cached_historical_cost](./P5_cached_historical_cost.md)            | Persist Cached Historical Cost in cache entries (provenance only)    | P4         | done | 81e630d | 2026-07-15 |
-| [P6: docs_and_live_validation](./P6_docs_and_live_validation.md)        | DECISIONS/BACKLOG/archive doc fixes + live 2-call cost validation    | P5         | pending |          |         |
+| [P6: docs_and_live_validation](./P6_docs_and_live_validation.md)        | DECISIONS/BACKLOG/archive doc fixes + live 2-call cost validation    | P5         | done | f857bf2 | 2026-07-15 |
 
 Filenames use `P{N}_{snake_case_title}.md`. "Depends on" lists phase ids or "-".
 
@@ -182,7 +185,19 @@ No separate typecheck/lint gate in this repo; the suite is the only gate.
   output (SF1), adds the archive hash-chain note (SF2), removes BACKLOG #4/#6,
   and runs the one live minimal Claude + one live GPT-4.1 call required by
   DECISIONS. No `src/` behavior changes.
-- **Notes:**
+- **Notes:** Done. SF1 docstring on `build_summary` in `src/summary.py`; SF2
+  hash-chain note appended to `docs/plans/archive/v2-enricher/PLAN.md`
+  (fact-checked: P2 Outcome HEAD `bd73882` vs P3 Baseline `234411c`); BACKLOG
+  #4/#6 removed, #1/#2/#3/#5 unrenumbered; both Should-fixes + the live
+  validation stamped in `DECISIONS.md`. Live validation: real
+  `infer_license` (Claude haiku) and `extract_copyright` (GPT-4.1) calls each
+  returned known, non-zero cost with `unknown_calls=0` — numbers in this
+  phase's Outcome. Suite: 119 passed. Fresh review: clean, no findings
+  ("Lean already. Ship."). Deviation: an unrelated commit (`0e127ba`,
+  `configs/default.json` input-path change) landed on the branch from
+  outside this session between this phase's two commits — not authored by
+  this phase, not in its Touch list; noted so the diff range doesn't read as
+  a scope violation (same pattern as P5's note).
 - **Incoming comments:**
 
 ## On completion
