@@ -11,8 +11,10 @@ description: >-
 # SBOM Enricher — Architecture Overview
 
 An orientation accelerator, not a spec. Use it to find the right module fast,
-then read that file. For domain vocabulary see `docs/CONTEXT.md`; for locked
-decisions see `docs/DECISIONS.md` and `docs/adr/`.
+then read that file. For domain vocabulary see `docs/CONTEXT.md`; for durable
+decisions see `docs/adr/` (cost/copyright contract:
+`docs/archive/DECISIONS_2026-07-15_cost-and-copyright.md` and
+`docs/plans/archive/cost-and-copyright-observability/`).
 
 ## What it does
 
@@ -41,8 +43,10 @@ Both are reached through the locked retry policy in `retry.py`
    `{license_name, license_code_url, reasoning}`.
 3. **License download** (`download.py`) — rewrite viewer→raw URLs, reject
    HTML/templates, fall back to npm/unpkg candidates from the purl.
-4. **Copyright extraction** (`copyright.py`) — GPT-4.1 reads the *downloaded
-   file only* (ADR 0003); placeholders → UNKNOWN.
+4. **Copyright extraction** (`copyright.py`) — chain, without overwriting an
+   earlier success: GPT-4.1 reads the downloaded LICENSE file → npm registry
+   `author` (npm purls only) → Claude web inference → UNKNOWN (ADR 0004,
+   supersedes ADR 0003); placeholders → UNKNOWN.
 5. **Cache write** (`cache.py`) — only on full success (all three fields known).
 6. **Equality** (`equality.py`, audit mode only) — see below.
 
@@ -110,8 +114,8 @@ summary.json      run-level aggregates (timings, cost buckets)
 - **Fail closed per component**: any component's error yields UNKNOWN fields,
   never crashes the run.
 - **UNKNOWN vs empty cost**: missing cost is the marker `"unknown"`, never `0`
-  (`pricing.UNKNOWN_COST`). Cost capture is partially stubbed — see the
-  `docs/plans/cost-and-copyright-observability/` plan.
+  (`pricing.UNKNOWN_COST`) — never defaulted, even when a bucket is partially
+  known (ADR 0005).
 - **Cache is all-or-nothing**: only fully-successful enrichments are cached, and
   a cached reuse contributes zero Run Cost (ADR 0001).
 - **Story is the source of truth** for post-hoc timings/reasons; the CSV/summary

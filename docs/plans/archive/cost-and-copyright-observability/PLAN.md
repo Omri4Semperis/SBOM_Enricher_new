@@ -1,5 +1,7 @@
 # Plan: cost-and-copyright-observability
 
+COMPLETED 2026-07-15 — historical record, not current truth
+
 **Live document.** Unlike the old design, this file is written to during
 execution. The executor of phase N may edit **only two files**: its own
 `P{N}_{...}.md` doc and this `PLAN.md`. It updates its row in the phase

@@ -1,11 +1,12 @@
-# SBOM Enricher — Current Decisions
+# SBOM Enricher — Cost & Copyright Decisions (archived)
 
-Signed off: 2026-07-15
+Signed off: 2026-07-15 · Archived: 2026-07-15
 
-This is the live decision log. The completed v2 grilling log is preserved at
-[`archive/DECISIONS_2026-07-15.md`](./archive/DECISIONS_2026-07-15.md).
-Domain vocabulary is defined in [`CONTEXT.md`](./CONTEXT.md); deferred work
-lives in [`BACKLOG.md`](./BACKLOG.md).
+Historical signed contract for the cost-and-copyright-observability plan.
+Requirements are embodied in
+`docs/plans/archive/cost-and-copyright-observability/`. The completed v2 grilling log
+is at [`DECISIONS_2026-07-15.md`](./DECISIONS_2026-07-15.md). Domain vocabulary:
+[`../CONTEXT.md`](../CONTEXT.md); deferred work: [`../BACKLOG.md`](../BACKLOG.md).
 
 ## Output contract
 
