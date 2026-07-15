@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pricing import UNKNOWN_COST, format_cost
+from pricing import UNKNOWN_COST, combine, format_cost
 
 if TYPE_CHECKING:
     from config import Config
@@ -87,25 +87,13 @@ def build_summary(
     n = len(results)
     cache_hits = sum(1 for r in results if r.from_cache)
 
-    # Costs: P3/P5/P7 don't capture tokens/CLI total_cost_usd on results yet
-    # (Incoming comments left on those PLAN blocks) → unknown / saved=0.
-    infer_unknown = n - cache_hits
-    copyright_unknown = sum(
-        1
-        for r in results
-        if not r.from_cache and r.license_file_path is not None
-    )
-    # Equality judge costs unknown whenever a GT field was compared (non-short-circuit
-    # reasons still may not call GPT; count rows with any eq reason starting judge:).
-    eq_name_unknown = sum(
-        1 for r in results if r.eq_license_name_reason.startswith("judge:")
-    )
-    eq_url_unknown = sum(
-        1 for r in results if r.eq_license_code_url_reason.startswith("judge:")
-    )
-    eq_cp_unknown = sum(
-        1 for r in results if r.eq_copyright_reason.startswith("judge:")
-    )
+    license_m = combine(r.license_meta for r in results)
+    copyright_m = combine(r.copyright_meta for r in results)
+    eq_name_m = combine(r.eq_license_name_meta for r in results)
+    eq_url_m = combine(r.eq_license_code_url_meta for r in results)
+    eq_cp_m = combine(r.eq_copyright_meta for r in results)
+    run_m = combine([license_m, copyright_m, eq_name_m, eq_url_m, eq_cp_m])
+    run_total = run_m.total_usd()
 
     infer_times: list[float] = []
     dl_times: list[float] = []
@@ -124,39 +112,43 @@ def build_summary(
 
     costs = {
         "license_inference": _cost_bucket(
-            total_usd=None,
+            total_usd=license_m.total_usd(),
             n=n,
-            unknown_calls=infer_unknown,
+            unknown_calls=license_m.unknown_calls,
             saved_by_cache_usd=0.0,
         ),
         "copyright_extraction": _cost_bucket(
-            total_usd=None,
+            total_usd=copyright_m.total_usd(),
             n=n,
-            unknown_calls=copyright_unknown,
+            unknown_calls=copyright_m.unknown_calls,
             saved_by_cache_usd=0.0,
         ),
         "equality_judges": {
             "license": _cost_bucket(
-                total_usd=None,
+                total_usd=eq_name_m.total_usd(),
                 n=n,
-                unknown_calls=eq_name_unknown,
+                unknown_calls=eq_name_m.unknown_calls,
                 include_saved=False,
             ),
             "url": _cost_bucket(
-                total_usd=None,
+                total_usd=eq_url_m.total_usd(),
                 n=n,
-                unknown_calls=eq_url_unknown,
+                unknown_calls=eq_url_m.unknown_calls,
                 include_saved=False,
             ),
             "copyright": _cost_bucket(
-                total_usd=None,
+                total_usd=eq_cp_m.total_usd(),
                 n=n,
-                unknown_calls=eq_cp_unknown,
+                unknown_calls=eq_cp_m.unknown_calls,
                 include_saved=False,
             ),
         },
-        "total_usd": UNKNOWN_COST,
-        "avg_per_row_usd": UNKNOWN_COST,
+        "total_usd": format_cost(run_total),
+        "avg_per_row_usd": (
+            format_cost(run_total / n if n and run_total is not None else None)
+            if run_total is not None
+            else UNKNOWN_COST
+        ),
     }
 
     return {
