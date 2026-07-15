@@ -60,12 +60,18 @@ emit `is_eq_*` equality columns and `score.csv`.
 
 **Equality**:
 The TRUE/FALSE verdict that an inferred value matches its Ground Truth,
-recorded in an `is_eq_*` column.
+recorded in an `is_eq_*` column. The URL field's equality ladder can also
+return the deterministic `UNSCOREABLE` sentinel (see ADR 0006) when the
+Ground Truth itself can't be fetched as a file; the judge never issues it —
+it stays strictly TRUE/FALSE.
 
 **Scoring Outcome**:
 The grade for one inferred enrichment field against Ground Truth: **hit**
-(matches), **mismatch** (inferred a wrong value), or **unknown** (didn't
-know, didn't guess wrong).
+(matches), **mismatch** (inferred a wrong value), **unknown** (didn't know,
+didn't guess wrong — a blank inferred value grades the same as the literal
+`UNKNOWN`), or **unscoreable** (Ground Truth isn't a fetchable license file,
+so the field can't be graded either way; excluded from any Hit-rate
+denominator — ADR 0006).
 
 **Run Cost**:
 The provider charges attributable to component processing in the current run:
