@@ -91,3 +91,9 @@ Cost.
   live minimal GPT-4.1 call after unit tests pass.
 - The live check must demonstrate that ordinary valid provider responses
   produce known component costs and zero unknown-cost calls.
+- **Validated 2026-07-15**: `infer_license` (`claude-haiku-4-5`, left-pad
+  1.3.0) returned `billable_calls=1`, `unknown_calls=0`,
+  `total_usd=0.4732403999999998`. `extract_copyright` (GPT-4.1, a tiny MIT
+  LICENSE snippet) returned `billable_calls=1`, `unknown_calls=0`,
+  `total_usd=0.000942`. Both providers produced known, non-zero cost with
+  zero unknown-cost calls.
