@@ -264,6 +264,36 @@ def test_fetch_http_error_fail_kind(tmp_path, monkeypatch):
     assert result.fail_kind == "http_error"
 
 
+def test_fetch_nuget_fallback_after_bad_claude(tmp_path, monkeypatch):
+    claude = "https://example.com/missing"
+    nuspec_url = (
+        "https://api.nuget.org/v3-flatcontainer/"
+        "newtonsoft.json/13.0.3/newtonsoft.json.nuspec"
+    )
+    raw_license = "https://raw.githubusercontent.com/JamesNK/Newtonsoft.Json/HEAD/LICENSE"
+
+    def fake_get(url, timeout=None):
+        if url == claude:
+            return _status_response(404)
+        if url == nuspec_url:
+            return _ok_response(_NUSPEC_WITH_REPO, "application/xml")
+        if url == raw_license:
+            return _ok_response(b"MIT License\n")
+        return _status_response(404)
+
+    monkeypatch.setattr("download.requests.get", fake_get)
+    (tmp_path / "per_component" / "newtonsoft.json@13.0.3").mkdir(parents=True)
+
+    result = asyncio.run(
+        fetch_license_file(
+            claude, "pkg:nuget/Newtonsoft.Json@13.0.3", tmp_path, "newtonsoft.json@13.0.3"
+        )
+    )
+    assert result.ok
+    assert result.resolved_url == raw_license
+    assert result.saved_path.read_bytes() == b"MIT License\n"
+
+
 def test_fetch_rejects_generic_template(tmp_path, monkeypatch):
     called = []
 

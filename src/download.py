@@ -314,6 +314,21 @@ async def fetch_license_file(
             result.saved_path = path
             return result
 
+    nuget_cands = nuget_candidates(purl)
+    if not (purl or "").strip():
+        attempts.append("empty purl: skip nuget fallback")
+    elif not nuget_cands:
+        attempts.append("non-nuget purl: skip nuget fallback")
+
+    for candidate in nuget_cands:
+        path, kind = await _try_one(candidate, dest_dir, slug, attempts)
+        if kind:
+            fail_kind = kind
+        if path is not None:
+            result.resolved_url = rewrite_viewer_to_raw(candidate)
+            result.saved_path = path
+            return result
+
     result.error = "download_failed"
     result.fail_kind = fail_kind
     return result
