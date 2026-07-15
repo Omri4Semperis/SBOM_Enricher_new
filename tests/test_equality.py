@@ -9,27 +9,47 @@ from unittest.mock import AsyncMock
 import equality
 from download import DownloadResult
 from equality import EqResult
+from pricing import CallMeta
+
+
+def _judge_meta(cost_usd: float = 0.002) -> CallMeta:
+    meta = CallMeta()
+    meta.add_call(cost_usd=cost_usd, raw='{"verdict":"TRUE"}')
+    return meta
 
 
 def test_name_identical():
     r = asyncio.run(equality.compare_name("MIT", "MIT"))
     assert r == EqResult("TRUE", "identical")
+    assert r.meta.billable_calls == 0
 
 
 def test_name_normalized_only():
     r = asyncio.run(equality.compare_name("mit", "MIT"))
     assert r == EqResult("TRUE", "normalized")
+    assert r.meta.billable_calls == 0
 
 
 def test_name_judge_decides():
     client = AsyncMock()
     client.complete_json = AsyncMock(
-        return_value={"verdict": "TRUE", "reasoning": "same SPDX family"}
+        return_value=(
+            {"verdict": "TRUE", "reasoning": "same SPDX family"},
+            _judge_meta(),
+        )
     )
     r = asyncio.run(equality.compare_name("GPL-3.0", "GPL-3.0-only", client=client))
     assert r.verdict == "TRUE"
     assert r.reason.startswith("judge:")
+    assert r.meta.billable_calls == 1
+    assert r.meta.cost_cell() != "unknown"
     client.complete_json.assert_awaited_once()
+
+
+def test_name_no_judge():
+    r = asyncio.run(equality.compare_name("GPL-3.0", "MIT", client=None))
+    assert r == EqResult("FALSE", "no_judge")
+    assert r.meta.billable_calls == 0
 
 
 def test_copyright_normalized():
@@ -40,6 +60,7 @@ def test_copyright_normalized():
         )
     )
     assert r == EqResult("TRUE", "normalized")
+    assert r.meta.billable_calls == 0
 
 
 def test_url_identical_bytes(tmp_path, monkeypatch):
@@ -62,6 +83,7 @@ def test_url_identical_bytes(tmp_path, monkeypatch):
         )
     )
     assert r == EqResult("TRUE", "identical")
+    assert r.meta.billable_calls == 0
 
 
 def test_url_normalized_whitespace(tmp_path, monkeypatch):
@@ -82,6 +104,7 @@ def test_url_normalized_whitespace(tmp_path, monkeypatch):
         equality.compare_url_content("https://a", "https://b", tmp_path, "pkg")
     )
     assert r == EqResult("TRUE", "normalized")
+    assert r.meta.billable_calls == 0
 
 
 def test_url_judge_decides(tmp_path, monkeypatch):
@@ -97,7 +120,10 @@ def test_url_judge_decides(tmp_path, monkeypatch):
     monkeypatch.setattr(equality, "fetch_license_file", fake_fetch)
     client = AsyncMock()
     client.complete_json = AsyncMock(
-        return_value={"verdict": "FALSE", "reasoning": "different licenses"}
+        return_value=(
+            {"verdict": "FALSE", "reasoning": "different licenses"},
+            _judge_meta(0.003),
+        )
     )
     r = asyncio.run(
         equality.compare_url_content(
@@ -106,6 +132,7 @@ def test_url_judge_decides(tmp_path, monkeypatch):
     )
     assert r.verdict == "FALSE"
     assert "judge:" in r.reason
+    assert r.meta.billable_calls == 1
 
 
 def test_gt_url_download_fail(tmp_path, monkeypatch):
@@ -128,3 +155,4 @@ def test_gt_url_download_fail(tmp_path, monkeypatch):
         )
     )
     assert r == EqResult("FALSE", "gt_url_download_failed")
+    assert r.meta.billable_calls == 0

@@ -5,6 +5,7 @@ import gpt41_client
 import pytest
 import retry
 from gpt41_client import Gpt41Client, ParseFailure
+from pricing import CallMeta
 
 
 def _mock_azure(monkeypatch, content: str | list[str], *, usage=None):
@@ -77,32 +78,41 @@ in the Software without restriction.
 def test_extract_verbatim_from_fixture(monkeypatch):
     async def fake_complete(self, system, user):
         assert "Jane Doe" in user
+        meta = CallMeta()
+        meta.add_call(cost_usd=0.001, raw='{"copyright":"Copyright (c) 2020 Jane Doe"}')
         return {
             "copyright": "Copyright (c) 2020 Jane Doe",
             "reasoning": "found notice line",
-        }
+        }, meta
 
     monkeypatch.setattr(Gpt41Client, "complete_json", fake_complete)
     import copyright as copyright_mod
 
-    out = asyncio.run(copyright_mod.extract_copyright(MIT_LICENSE))
+    out, meta = asyncio.run(copyright_mod.extract_copyright(MIT_LICENSE))
     assert out["copyright"] == "Copyright (c) 2020 Jane Doe"
     assert "notice" in out["reasoning"]
+    assert meta.billable_calls == 1
+    assert meta.cost_cell() == "0.001000"
 
 
 def test_extract_placeholder_unknown(monkeypatch):
     async def fake_complete(self, system, user):
+        meta = CallMeta()
+        meta.add_call(cost_usd=0.0001, raw="{}")
         return {
             "copyright": "Copyright (c) <year> <copyright holders>",
             "reasoning": "template line",
-        }
+        }, meta
 
     monkeypatch.setattr(Gpt41Client, "complete_json", fake_complete)
     import copyright as copyright_mod
 
-    out = asyncio.run(copyright_mod.extract_copyright("MIT License\nCopyright (c) <year>"))
+    out, meta = asyncio.run(
+        copyright_mod.extract_copyright("MIT License\nCopyright (c) <year>")
+    )
     assert out["copyright"] == "UNKNOWN"
     assert "placeholder" in out["reasoning"]
+    assert meta.billable_calls == 1
 
 
 def test_extract_empty_text_no_llm(monkeypatch):
@@ -110,14 +120,15 @@ def test_extract_empty_text_no_llm(monkeypatch):
 
     async def fake_complete(self, system, user):
         called["n"] += 1
-        return {"copyright": "x", "reasoning": "y"}
+        return {"copyright": "x", "reasoning": "y"}, CallMeta()
 
     monkeypatch.setattr(Gpt41Client, "complete_json", fake_complete)
     import copyright as copyright_mod
 
-    out = asyncio.run(copyright_mod.extract_copyright("   "))
+    out, meta = asyncio.run(copyright_mod.extract_copyright("   "))
     assert out["copyright"] == "UNKNOWN"
     assert called["n"] == 0
+    assert meta.billable_calls == 0
 
 
 def test_extract_unknown_after_parse_retries(monkeypatch):
@@ -127,6 +138,7 @@ def test_extract_unknown_after_parse_retries(monkeypatch):
     monkeypatch.setattr(Gpt41Client, "complete_json", fake_complete)
     import copyright as copyright_mod
 
-    out = asyncio.run(copyright_mod.extract_copyright(MIT_LICENSE))
+    out, meta = asyncio.run(copyright_mod.extract_copyright(MIT_LICENSE))
     assert out["copyright"] == "UNKNOWN"
     assert "retries exhausted" in out["reasoning"]
+    assert meta.billable_calls == 0

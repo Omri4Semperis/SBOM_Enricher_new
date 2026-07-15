@@ -107,5 +107,13 @@ class Gpt41Client:
             meta.add_call(cost_usd=cost_usd, raw=content)
             return _parse_json_content(content)
 
-        data = await with_retries(once, classify=_classify)
+        try:
+            data = await with_retries(once, classify=_classify)
+        except BaseException as e:
+            # Callers that fail-closed (copyright) still need billed-attempt meta.
+            try:
+                e.meta = meta  # type: ignore[attr-defined]
+            except Exception:  # noqa: BLE001 — immutable/exotic exceptions
+                pass
+            raise
         return data, meta

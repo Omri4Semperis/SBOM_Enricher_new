@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from download import fetch_license_file
 from gpt41_client import Gpt41Client
+from pricing import CallMeta
 from prompts import (
     equality_copyright_prompts,
     equality_name_prompts,
@@ -23,6 +24,7 @@ _TRAILING_PUNCT_RE = re.compile(r"[\s.,;:]+$")
 class EqResult:
     verdict: str  # TRUE | FALSE
     reason: str
+    meta: CallMeta = field(default_factory=CallMeta)
 
 
 def _normalize_name(value: str) -> str:
@@ -52,12 +54,12 @@ async def _judge(
     system: str,
     user: str,
 ) -> EqResult:
-    data = await client.complete_json(system, user)
+    data, meta = await client.complete_json(system, user)
     verdict = str(data.get("verdict", "")).strip().upper()
     reasoning = str(data.get("reasoning", "")).strip() or "judge"
     if verdict not in ("TRUE", "FALSE"):
-        return EqResult("FALSE", f"judge_bad_verdict:{verdict or 'empty'}")
-    return EqResult(verdict, f"judge:{reasoning}")
+        return EqResult("FALSE", f"judge_bad_verdict:{verdict or 'empty'}", meta=meta)
+    return EqResult(verdict, f"judge:{reasoning}", meta=meta)
 
 
 async def _text_ladder(
