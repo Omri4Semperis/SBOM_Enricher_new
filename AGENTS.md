@@ -5,6 +5,10 @@ license, license url and copyright statement — all fetched online.
 
 Important: Look at `docs/` for special and important documents.
 
+For repo orientation, pipeline/data-flow questions, or module ownership, use
+the `architecture-overview` skill. For any test, verification, environment
+setup, enrichment run, preflight, or runtime-report task, use `run-and-test`.
+
 ## Resuming a handoff
 
 At session start, check for `docs/HANDOFF.md` (repo root):

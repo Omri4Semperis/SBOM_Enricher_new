@@ -3,9 +3,10 @@ name: architecture-overview
 description: >-
   High-level map of the SBOM Enricher codebase — the enrichment pipeline, the
   module-to-responsibility layout under src/, the per-run output artifacts, and
-  audit mode. Use as a fast orientation accelerator when starting work on this
-  project, locating which module owns a concern, or reasoning about data flow.
-  This is a map, not a deep dive — read the cited source file for details.
+  audit mode. Use when orienting in the repo; tracing enrichment data flow;
+  deciding which module owns a change; or working on process_component,
+  providers, downloads, cache, audit/scoring, Story, summaries, or run outputs.
+  This is a map, not a spec — read the cited source file before editing.
 ---
 
 # SBOM Enricher — Architecture Overview
@@ -31,18 +32,21 @@ enrichment against them.
   extraction and equality judging.
 
 Both are reached through the locked retry policy in `retry.py`
-(transient/parse/hard classification).
+(transient/parse/hard classification). One `Gpt41Client` is shared across a
+run; its synchronous AAD token acquisition is offloaded from the event loop.
+Each Claude subprocess is capped at 20 minutes.
 
 ## Pipeline flow (one component)
 
 `process_component` in `src/pipeline.py` is the spine:
 
 1. **Cache check** (`cache.py`) — all-or-nothing hit by `component_name`
-   short-circuits everything and returns immediately.
+   skips enrichment; audit equality still runs afterward when enabled.
 2. **License inference** (`claude_client.py`) — Claude returns
    `{license_name, license_code_url, reasoning}`.
 3. **License download** (`download.py`) — rewrite viewer→raw URLs, reject
-   HTML/templates, fall back to npm/unpkg candidates from the purl.
+   HTML/templates, then try purl-specific fallbacks: npm/unpkg or a
+   NuGet nuspec's GitHub repository.
 4. **Copyright extraction** (`copyright.py`) — chain, without overwriting an
    earlier success: GPT-4.1 reads the downloaded LICENSE file → npm registry
    `author` (npm purls only) → Claude web inference → UNKNOWN (ADR 0004,
@@ -57,9 +61,10 @@ of the Story by `summary.py` / `results_csv.py`.
 ## Concurrency & entry
 
 - `src/main.py` — CLI entry: load config → `preflight` → build run dir →
-  run workers → write `score.csv` + `summary.json`.
+  run workers → write `score.csv` (audit only), `summary.json`, and
+  `runtime_report.html`.
 - `run_workers` in `pipeline.py` — bounded `asyncio.Semaphore(workers)` pool;
-  results streamed to the CSV writers via `as_completed`.
+  one shared GPT-4.1 client; results streamed to CSV writers via `as_completed`.
 - `preflight.py` — fail-fast connectivity probe of Claude + Azure before any
   work starts (mocked in tests).
 
@@ -73,10 +78,10 @@ of the Story by `summary.py` / `results_csv.py`.
 | `pipeline.py` | `ComponentResult`, `process_component`, `apply_equality`, `run_workers` |
 | `claude_client.py` | Claude CLI license inference (subprocess + JSON parse) |
 | `gpt41_client.py` | Async Azure GPT-4.1 wrapper (`complete_json`) |
-| `download.py` | License-file fetch: URL rewrite, HTML reject, npm fallback |
-| `copyright.py` | File-only copyright extraction via GPT-4.1 |
+| `download.py` | License-file fetch: URL rewrite, validation, npm + NuGet fallbacks |
+| `copyright.py` | Copyright resolver: GPT file extraction → npm author → Claude web |
 | `equality.py` | Audit equality ladders (identical → normalized → LLM judge) |
-| `scoring.py` | Grade Hit/Mismatch/Unknown; tally `score.csv` |
+| `scoring.py` | Grade Hit/Mismatch/Unknown/Unscoreable; tally `score.csv` |
 | `retry.py` | Locked async retry/backoff policy |
 | `prompts.py` | All prompt/schema builders |
 | `pricing.py` | Model price table + cost math (source-only constants) |
@@ -91,9 +96,9 @@ of the Story by `summary.py` / `results_csv.py`.
 Active only when the input has one or more ground-truth columns
 (`license_name` / `license_code_url` / `copyright`), detected by
 `detect_gt_columns`. When on: `apply_equality` fills `is_eq_*` verdicts,
-`grade_row` assigns Hit/Mismatch/Unknown, and `write_score_csv` emits
-`score.csv`. Equality uses a cheap ladder — exact match, then normalized match,
-then a GPT-4.1 judge (ADR 0002: URLs compared by downloaded content).
+`grade_row` assigns Hit/Mismatch/Unknown/Unscoreable, and `write_score_csv`
+emits `score.csv`. Equality uses a cheap ladder — exact match, then normalized
+match, then a GPT-4.1 judge (ADR 0002: URLs compared by downloaded content).
 
 ## Per-run output tree
 
@@ -113,8 +118,8 @@ runtime_report.html  self-contained time + accuracy report
 
 ## Cross-cutting conventions
 
-- **Fail closed per component**: any component's error yields UNKNOWN fields,
-  never crashes the run.
+- **Provider failures fail closed** into UNKNOWN fields after retry exhaustion
+  or a hard failure; unexpected programming/filesystem errors can propagate.
 - **UNKNOWN vs empty cost**: missing cost is the marker `"unknown"`, never `0`
   (`pricing.UNKNOWN_COST`) — never defaulted, even when a bucket is partially
   known (ADR 0005).

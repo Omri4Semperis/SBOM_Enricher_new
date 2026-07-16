@@ -1,10 +1,11 @@
 ---
 name: run-and-test
 description: >-
-  How to run and test the SBOM Enricher — the venv + pytest test command, and
-  the config-driven CLI enrichment run (including the live Claude CLI + Azure
-  credentials it requires). Use when asked to run the test suite, run/execute an
-  enrichment, verify changes, set up the environment, or reproduce a run.
+  Authoritative Windows/PowerShell commands for testing and running the SBOM
+  Enricher: repo venv, pytest, config-driven enrichment, runtime reports, and
+  required Claude CLI/Azure credentials. Use whenever asked to run pytest or
+  tests, verify/validate changes, reproduce a failure or run, execute an
+  enrichment, set up .venv, generate a report, or troubleshoot preflight/auth.
 ---
 
 # Running & Testing the SBOM Enricher
@@ -21,7 +22,7 @@ path and mocks preflight, so this is the go-to check after any change.
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Baseline: **95 passed** (~16s). Useful variants:
+Expected result: exit 0. Useful variants:
 
 ```powershell
 # one file
@@ -38,10 +39,12 @@ the `conftest.py` path insert, so run from the repo root.
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install pytest
 ```
 
 Runtime deps (`requirements.txt`): `openai`, `azure-identity`,
-`azure-ai-projects`, `requests`, `pypdf`.
+`azure-ai-projects`, `requests`, `pypdf`. Pytest is not listed there, so install
+it separately in a fresh venv.
 
 ## Live enrichment run
 
@@ -71,6 +74,16 @@ Output is a new run dir printed to stdout (progress/logs go to stderr). See the
 
 If you only need to validate code, run the test suite instead — it mocks both.
 
+## Runtime report
+
+Every successful enrichment automatically writes `runtime_report.html`.
+Regenerate or open a report for an existing run with:
+
+```powershell
+.\.venv\Scripts\python.exe src\runtime_report.py <run_dir>
+.\.venv\Scripts\python.exe src\runtime_report.py <run_dir> --out report.html --open
+```
+
 ### Config fields (`configs/default.json`)
 
 | Field | Meaning |
@@ -82,6 +95,7 @@ If you only need to validate code, run the test suite instead — it mocks both.
 | `workers` | Concurrency, int in `[1, 30]` |
 | `cache_read` / `cache_write` | Cache dirs, or `null` |
 
-Relative paths resolve against the repo root. To do a cheap/offline-ish smoke
-run, point `input_file_path` at a tiny CSV and set `cache_read` to a populated
-cache dir so components hit the cache (cache hits skip the LLM calls).
+Relative paths resolve against the repo root. For a cheap cache-backed smoke
+run, point `input_file_path` at a tiny CSV and `cache_read` at a populated
+cache. Startup preflight still requires both live credentials; after it passes,
+cache hits skip per-component provider calls.
