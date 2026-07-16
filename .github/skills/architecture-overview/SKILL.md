@@ -89,9 +89,11 @@ into a model context.
 | Module | Responsibility |
 |--------|----------------|
 | `main.py` | CLI entry, orchestration, output writing |
+| `preflight.py` | Fail-fast connectivity probe of Claude + Azure before any work |
 | `config.py` | Load/validate `configs/*.json` → frozen `Config`; `REPO_ROOT`, `MODEL_CHOICES` |
 | `input_csv.py` | Parse input CSV → `Component`; slugs, dedupe, passthrough columns |
 | `pipeline.py` | `ComponentResult`, `process_component`, `apply_equality`, `run_workers` |
+| `cache.py` | All-or-nothing component cache: read/write by `component_name` (ADR 0001) |
 | `claude_client.py` | Claude CLI: license inference + web copyright fallback |
 | `gpt41_client.py` | Async Azure GPT-4.1 wrapper (`complete_json`) |
 | `download.py` | License-file fetch: URL rewrite, validation, npm + NuGet fallbacks |

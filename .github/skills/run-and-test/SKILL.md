@@ -24,7 +24,7 @@ providers when tests are written correctly. Go-to check after any change:
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Expected: exit 0. Baseline on this repo: **141 passed** (~60–90s). Useful
+Expected: exit 0. Baseline on this repo: **157 passed** (~25–90s). Useful
 variants:
 
 ```powershell
@@ -113,7 +113,7 @@ provider/retry/cache tallies, concurrency peak+avg, slowest ops.
 | `input_file_path` | Input CSV (needs `component_name`, `purl`; GT columns enable audit mode) |
 | `output_base_path` | Where run dirs are written (default `runs/`) |
 | `run_name` | Optional label, or `null` |
-| `model` | One of `config.MODEL_CHOICES` (e.g. `claude-opus-4-8`) |
+| `model` | One of `config.MODEL_CHOICES` (default `claude-sonnet-5`) |
 | `workers` | Concurrency, int in `[1, 30]` |
 | `cache_read` / `cache_write` | Cache dirs, or `null` |
 
