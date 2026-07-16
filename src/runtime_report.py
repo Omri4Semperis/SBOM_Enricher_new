@@ -33,6 +33,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from input_csv import parse_component_name
+
 csv.field_size_limit(10_000_000)  # extended CSV carries big raw-response cells
 
 # Phases the Story records a `timing_s=` for, in pipeline order. The label and
@@ -54,13 +56,14 @@ CACHE_COLOR = "#94a3b8"
 # Colors are the Okabe-Ito colorblind-safe palette, deliberately NOT
 # green-vs-red for Hit-vs-Mismatch (that pair is the one most CVD types
 # confuse). Blue vs. vermillion stays distinguishable under protanopia,
-# deuteranopia, and tritanopia. Every use also carries a glyph (see
-# GRADE_GLYPH) so no signal is color-only.
+# deuteranopia, and tritanopia. Saturated a notch past the textbook hexes
+# so the 13px chips still read clearly. Every use also carries a glyph
+# (see GRADE_GLYPH) so no signal is color-only.
 GRADES: tuple[tuple[str, str, str], ...] = (
-    ("Hit", "#0072B2", "\u2713"),  # blue, check
-    ("Mismatch", "#D55E00", "\u2717"),  # vermillion, cross
-    ("Unknown", "#767676", "?"),  # neutral gray
-    ("Unscoreable", "#CC79A7", "\u2014"),  # reddish purple, dash
+    ("Hit", "#0066CC", "\u2713"),  # punchy blue, check
+    ("Mismatch", "#E65C00", "\u2717"),  # hot vermillion, cross
+    ("Unknown", "#3D3D3D", "?"),  # dark gray (clear vs blue at small size)
+    ("Unscoreable", "#D45087", "\u2014"),  # strong magenta, dash
 )
 GRADE_ORDER = tuple(g[0] for g in GRADES)
 GRADE_COLOR = {g[0]: g[1] for g in GRADES}
@@ -75,6 +78,18 @@ EQ_REASON_COL = {
     "license_name": "eq_license_name_reason",
     "license_code_url": "eq_license_code_url_reason",
     "copyright": "eq_copyright_reason",
+}
+INFERRED_COL = {
+    "license_name": "inferred_license_name",
+    "license_code_url": "inferred_license_code_url",
+    "copyright": "inferred_copyright",
+}
+# Which pipeline-reasoning column backs each tab: name + URL share the license
+# inferencer's reasoning; copyright has its own (see ADR 0010).
+PIPELINE_REASON_KEY = {
+    "license_name": "license",
+    "license_code_url": "license",
+    "copyright": "copyright",
 }
 
 # Only the final download line carries a timing_s; matches summary.py semantics.
@@ -100,10 +115,21 @@ class Component:
     download_outcome: str = ""  # "chose ..." / "failed (...)" / ""
     grades: dict[str, str] = field(default_factory=dict)  # gt field -> grade
     eq_reasons: dict[str, str] = field(default_factory=dict)  # gt field -> reason
+    # Display-only extended-CSV facts (ADR 0010): the values the expand UI shows.
+    inferred: dict[str, str] = field(default_factory=dict)  # gt field -> inferred
+    gt: dict[str, str] = field(default_factory=dict)  # gt field -> ground truth
+    pipeline_reason: dict[str, str] = field(default_factory=dict)  # license/copyright
+    total_cost: str = ""  # per-component total_cost_usd (may be the "unknown" sentinel)
+    license_file_path: str = ""
+    license_file_original_url: str = ""
 
     @property
     def total(self) -> float:
         return sum(self.timings.values())
+
+    def has_gt(self, gf: str) -> bool:
+        """A field is graded (audit) iff scoring emitted a grade for it."""
+        return gf in self.grades
 
 
 @dataclass
@@ -229,10 +255,40 @@ def _parse_grades(cell: str) -> dict[str, str]:
         return {}
 
 
-def load_audit(run_dir: Path, components: list[Component]) -> AuditData | None:
-    """Read the extended CSV grades; attach per-component grades by name.
+def _attach_extended_row(comp: Component, row: dict[str, str]) -> None:
+    """Attach the display-only facts ADR 0010's expand UI shows.
 
-    Returns None when the run has no graded rows (i.e. not an audit run).
+    Runs for every matched component, audit or not — the strip must show
+    inferred values even when there is no ground truth. Grades and equality
+    reasons are attached separately (only when the run graded that field).
+    """
+    for gf in GT_FIELDS:
+        inf = row.get(INFERRED_COL[gf], "")
+        if inf:
+            comp.inferred[gf] = inf
+        gt = row.get(gf, "")  # GT column absent in non-audit runs -> ""
+        if gt:
+            comp.gt[gf] = gt
+    for reason_key, col in (("license", "license_reasoning"),
+                            ("copyright", "copyright_reasoning")):
+        val = row.get(col, "")
+        if val:
+            comp.pipeline_reason[reason_key] = val
+    cost = row.get("total_cost_usd", "")
+    if cost:
+        comp.total_cost = cost
+    if row.get("license_file_path"):
+        comp.license_file_path = row["license_file_path"]
+    if row.get("license_file_original_url"):
+        comp.license_file_original_url = row["license_file_original_url"]
+
+
+def load_extended(run_dir: Path, components: list[Component]) -> AuditData | None:
+    """Read the extended CSV once: attach per-component display facts to every
+    matched row, and aggregate grades/equality reasons into AuditData.
+
+    Returns the AuditData only when the run has graded rows (audit mode);
+    display facts are attached regardless so the expand UI works either way.
     """
     path = _extended_csv(run_dir)
     if path is None or not path.is_file():
@@ -247,11 +303,13 @@ def load_audit(run_dir: Path, components: list[Component]) -> AuditData | None:
 
     with path.open(encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
+            comp = by_name.get(row.get("component_name", ""))
+            if comp is not None:
+                _attach_extended_row(comp, row)
             grades = _parse_grades(row.get("grades", ""))
             if not grades:
                 continue
             n_rows += 1
-            comp = by_name.get(row.get("component_name", ""))
             for gf, grade in grades.items():
                 if gf not in counts:
                     continue
@@ -290,7 +348,7 @@ def load_run(run_dir: Path) -> RunData:
             comp = parse_component(comp_dir)
             if comp is not None:
                 components.append(comp)
-    audit = load_audit(run_dir, components)
+    audit = load_extended(run_dir, components)
     run_id = summary.get("run_info", {}).get("run_id") if summary else run_dir.name
     return RunData(
         run_dir=run_dir,
@@ -305,17 +363,26 @@ def load_run(run_dir: Path) -> RunData:
 # Formatting helpers
 # --------------------------------------------------------------------------- #
 def fmt_dur(seconds: float | None) -> str:
+    """Format as total-minutes:seconds (mm:ss), minutes unbounded past 60.
+
+    Examples: 15s → 00:15, 10m15s → 10:15, 1h9s → 60:09, 2h3m30s → 123:30.
+    Displayed times need an mm:ss (minutes) cue nearby; raw Story
+    ``timing_s=`` / timeout strings stay in seconds and must not be rewritten.
+    """
     if seconds is None:
         return "—"
-    if seconds < 1:
-        return f"{seconds * 1000:.0f} ms"
-    if seconds < 60:
-        return f"{seconds:.1f} s"
-    minutes, secs = divmod(seconds, 60)
-    if minutes < 60:
-        return f"{int(minutes)}m {secs:04.1f}s"
-    hours, minutes = divmod(int(minutes), 60)
-    return f"{hours}h {minutes:02d}m {secs:04.1f}s"
+    total = max(0, int(round(seconds)))
+    minutes, secs = divmod(total, 60)
+    return f"{minutes:02d}:{secs:02d}"
+
+
+# Visible unit cue next to every fmt_dur surface (not raw timing_s= text).
+_MMSS_HINT = "mm:ss (minutes)"
+_MMSS_NOTE = (
+    f"Times are <b>{_MMSS_HINT}</b> — total minutes : seconds, minutes may "
+    "exceed 60. Raw Story <code>timing_s=</code> and timeout strings stay in "
+    "seconds."
+)
 
 
 def fmt_iso(iso: str | None) -> str:
@@ -358,7 +425,7 @@ def stacked_bar(segments: list[tuple[str, float, str]], total: float) -> str:
         if value <= 0:
             continue
         width = pct(value, total)
-        title = f"{label}: {fmt_dur(value)} ({width:.0f}%)"
+        title = f"{label}: {fmt_dur(value)} {_MMSS_HINT} ({width:.0f}%)"
         cells.append(
             f'<span class="seg" style="width:{width:.4f}%;background:{color}" '
             f'title="{esc(title)}"></span>'
@@ -423,13 +490,15 @@ def phase_breakdown_section(run: RunData) -> str:
         "<h2>Where did the time go?</h2>"
         '<p class="muted">Total time spent in each timed call, summed across all '
         "components. This is compute time (work done), not wall-clock — with "
-        "concurrent workers the run finishes much faster than this sum.</p>"
+        f"concurrent workers the run finishes much faster than this sum. {_MMSS_NOTE}</p>"
         f"{legend()}"
         f'<div class="big-bar">{bar}</div>'
         '<table class="grid">'
-        "<thead><tr><th>Call / phase</th><th class='num'>Total</th>"
+        "<thead><tr><th>Call / phase</th>"
+        f"<th class='num' title='{_MMSS_HINT}'>Total</th>"
         "<th class='num'>Share</th><th class='num'>Calls</th>"
-        "<th class='num'>Avg</th><th class='num'>Max</th></tr></thead>"
+        f"<th class='num' title='{_MMSS_HINT}'>Avg</th>"
+        f"<th class='num' title='{_MMSS_HINT}'>Max</th></tr></thead>"
         f"<tbody>{''.join(rows)}</tbody></table>"
         "</section>"
     )
@@ -548,10 +617,12 @@ def overview_section(run: RunData) -> str:
 
     cards = [stat_card("Components", str(n), f"{cache_hits} from cache")]
     if wall is not None:
-        cards.append(stat_card("Wall time", fmt_dur(wall), "actual elapsed"))
+        cards.append(stat_card("Wall time", fmt_dur(wall), f"{_MMSS_HINT} · actual elapsed"))
     cards.append(
         stat_card(
-            "Total compute", fmt_dur(grand), "summed across all timed calls"
+            "Total compute",
+            fmt_dur(grand),
+            f"{_MMSS_HINT} · summed across all timed calls",
         )
     )
     if wall and grand:
@@ -570,10 +641,12 @@ def overview_section(run: RunData) -> str:
             stat_card(
                 "Slowest component",
                 fmt_dur(slowest.total),
-                slowest.name,
+                f"{_MMSS_HINT} · {slowest.name}",
             )
         )
-        cards.append(stat_card("Median per component", fmt_dur(median)))
+        cards.append(
+            stat_card("Median per component", fmt_dur(median), _MMSS_HINT)
+        )
     if run.total_cost and run.total_cost != "unknown":
         cards.append(stat_card("Run cost", f"${run.total_cost}", "from summary.json"))
     if run.audit is not None:
@@ -633,13 +706,29 @@ def grade_chips(comp: Component) -> str:
         grade = comp.grades.get(gf)
         if grade is None:
             continue
-        color = GRADE_COLOR.get(grade, "#767676")
+        color = GRADE_COLOR.get(grade, "#3D3D3D")
         glyph = GRADE_GLYPH.get(grade, "?")
         chips.append(
             f'<i class="chip" style="background:{color}" '
             f'title="{esc(FIELD_LABEL[gf])}: {esc(grade)}">{esc(glyph)}</i>'
         )
     return f'<span class="chips">{"".join(chips)}</span>'
+
+
+def _name_cell(comp: Component) -> str:
+    """Stacked name cell: lib name, version, then grade chips (each may wrap)."""
+    lib, ver = parse_component_name(comp.name)
+    if not lib:
+        lib, ver = comp.name.strip(), ""
+    chips = grade_chips(comp)
+    cache = '<span class="badge cache">cache</span>' if comp.from_cache else ""
+    meta = f"<div class='cmeta'>{chips}{cache}</div>" if (chips or cache) else ""
+    ver_html = f"<div class='cver'>{esc(ver)}</div>" if ver else ""
+    return (
+        f"<td class='name' title='{esc(comp.name)}'>"
+        f"<div class='cname'>{esc(lib)}</div>"
+        f"{ver_html}{meta}</td>"
+    )
 
 
 def component_table_section(run: RunData) -> str:
@@ -654,9 +743,6 @@ def component_table_section(run: RunData) -> str:
         ]
         # Scale each component's bar against the slowest one for visual compare.
         bar = stacked_bar(segs, max_total if max_total > 0 else 1.0)
-        cache_badge = (
-            '<span class="badge cache">cache</span>' if c.from_cache else ""
-        )
         phase_cells = "".join(
             f"<td class='num'>{fmt_dur(c.timings.get(k)) if k in c.timings else '·'}</td>"
             for k in PHASE_KEYS
@@ -669,7 +755,7 @@ def component_table_section(run: RunData) -> str:
             f'data-copyright="{_sort_key(c, "copyright"):.6f}" '
             f'onclick="tgl(this)">'
             f"<td class='rank'>{i + 1}</td>"
-            f"<td class='name'>{esc(c.name)}{grade_chips(c)}{cache_badge}</td>"
+            f"{_name_cell(c)}"
             f"<td class='barcell'>{bar}</td>"
             f"{phase_cells}"
             f"<td class='num total'><b>{fmt_dur(c.total)}</b></td>"
@@ -679,83 +765,208 @@ def component_table_section(run: RunData) -> str:
 
     return (
         '<section class="panel">'
-        "<h2>Per-component breakdown</h2>"
+        "<div class='sec-head'><h2>Per-component breakdown</h2>"
+        "<div class='allbtns'>"
+        "<button class='allbtn' onclick='openAll(true)'>Open all</button>"
+        "<button class='allbtn' onclick='openAll(false)'>Close all</button>"
+        "</div></div>"
         '<p class="muted">Sorted slowest first. Bars are scaled to the slowest '
-        "component. Click a row for the call details. Click a column header to "
-        "re-sort.</p>"
+        "component. Click a row to expand its ground-truth-vs-inferred detail. "
+        f"Click a column header to re-sort. {_MMSS_NOTE}</p>"
         f"{legend()}"
         '<table class="grid comps" id="comps">'
         "<thead><tr>"
-        "<th>#</th>"
-        "<th data-sort='name'>Component</th>"
-        "<th>Time split</th>"
-        "<th class='num' data-sort='license'>License</th>"
-        "<th class='num' data-sort='download'>Download</th>"
-        "<th class='num' data-sort='copyright'>Copyright</th>"
-        "<th class='num' data-sort='total'>Total</th>"
+        "<th class='rank'>#</th>"
+        "<th class='name' data-sort='name'>Component</th>"
+        "<th class='barcell'>Time split</th>"
+        f"<th class='num' data-sort='license' title='{_MMSS_HINT}'>License</th>"
+        f"<th class='num' data-sort='download' title='{_MMSS_HINT}'>Download</th>"
+        f"<th class='num' data-sort='copyright' title='{_MMSS_HINT}'>Copyright</th>"
+        f"<th class='num' data-sort='total' title='{_MMSS_HINT}'>Total</th>"
         "</tr></thead>"
         f"<tbody>{''.join(body_rows)}</tbody></table>"
         "</section>"
     )
 
 
-def _component_detail(c: Component) -> str:
-    parts = [f"<div class='dk'>purl</div><div class='dv'>{esc(c.purl or '—')}</div>"]
-    for gf in GT_FIELDS:
-        grade = c.grades.get(gf)
-        if grade is None:
-            continue
-        reason = c.eq_reasons.get(gf, "")
-        reason_html = f" <span class='muted'>({esc(reason)})</span>" if reason else ""
-        parts.append(
-            f"<div class='dk'>{esc(FIELD_LABEL[gf])}</div>"
-            f"<div class='dv'><span class='gtag' "
-            f"style='background:{GRADE_COLOR.get(grade, '#cbd5e1')}'>{esc(grade)}"
-            f"</span>{reason_html}</div>"
-        )
+def _fmt_cost(cost: str) -> str | None:
+    """A per-component USD cost, only when the cell is a real number.
+
+    The extended CSV often stores the `unknown` sentinel (or blank for cache
+    hits); the strip shows cost only "when available" (ADR 0010)."""
+    try:
+        return f"${float(cost):.4f}"
+    except (TypeError, ValueError):
+        return None
+
+
+def _grade_tag(grade: str) -> str:
+    color = GRADE_COLOR.get(grade, "#3D3D3D")
+    glyph = GRADE_GLYPH.get(grade, "?")
+    return (
+        f"<span class='gtag' style='background:{color}'>"
+        f"{esc(glyph)} {esc(grade)}</span>"
+    )
+
+
+def _strip(c: Component) -> str:
+    """Always-visible summary shown the moment a row expands."""
+    ops = []
     if c.from_cache:
-        parts.append(
-            "<div class='dk'>cache</div><div class='dv'>All fields served from "
-            "cache — no calls made.</div>"
+        ops.append("<span class='op'>served from cache</span>")
+    if c.download_outcome:
+        ops.append(
+            "<span class='op'>"
+            f"{_clip('download: ' + esc(c.download_outcome), c.download_outcome)}"
+            "</span>"
         )
     if c.license_attempts:
-        parts.append(
-            f"<div class='dk'>license attempts</div>"
-            f"<div class='dv'>{esc(c.license_attempts)}</div>"
+        ops.append(f"<span class='op'>attempts: {esc(c.license_attempts)}</span>")
+    cost = _fmt_cost(c.total_cost)
+    if cost:
+        ops.append(f"<span class='op'>cost: {esc(cost)}</span>")
+    ops_html = f"<div class='strip-ops'>{''.join(ops)}</div>" if ops else ""
+
+    inferred_items = []
+    for gf in GT_FIELDS:
+        val = c.inferred.get(gf, "")
+        grade = c.grades.get(gf)
+        chip = ""
+        if grade is not None:
+            color = GRADE_COLOR.get(grade, "#3D3D3D")
+            glyph = GRADE_GLYPH.get(grade, "?")
+            chip = (
+                f"<i class='chip' style='background:{color}' "
+                f"title='{esc(grade)}'>{esc(glyph)}</i>"
+            )
+        inferred_items.append(
+            f"<div class='si'><span class='si-k'>{esc(FIELD_LABEL[gf])}{chip}"
+            f"</span><span class='si-v'>"
+            f"{_clip(esc(val), val) if val else '—'}"
+            f"</span></div>"
         )
-    if c.download_outcome:
-        parts.append(
-            f"<div class='dk'>download</div>"
-            f"<div class='dv'>{esc(c.download_outcome)}</div>"
+
+    return (
+        "<div class='strip'>"
+        f"<div class='strip-purl'><span class='si-k'>purl</span>"
+        f"<code>{esc(c.purl or '—')}</code></div>"
+        f"{ops_html}"
+        f"<div class='strip-inferred'>{''.join(inferred_items)}</div>"
+        "</div>"
+    )
+
+
+def _fmt_equality(reason: str) -> tuple[str, str]:
+    """Return (plain_text, html) for an equality reason.
+
+    LLM-judge reasons arrive as ``judge:<prose>`` from equality.py — surface a
+    badge + prose instead of the raw prefix. Ladder codes stay as ``<code>``.
+    """
+    r = (reason or "").strip()
+    if r.startswith("judge:"):
+        body = r[6:].lstrip()
+        return body, (
+            f"<span class='eq-badge'>LLM judge</span>{esc(body)}"
         )
-    if c.license_reason:
-        parts.append(
-            f"<div class='dk'>license reasoning</div>"
-            f"<div class='dv'>{esc(c.license_reason)}</div>"
-        )
-    if c.copyright_reason:
-        parts.append(
-            f"<div class='dk'>copyright reasoning</div>"
-            f"<div class='dv'>{esc(c.copyright_reason)}</div>"
-        )
-    return f"<div class='detail'>{''.join(parts)}</div>"
+    return r, f"<code>{esc(r)}</code>"
+
+
+def _clip(inner_html: str, plain: str) -> str:
+    """One-line clamp when text is long; click toggles full text."""
+    if len(plain) <= 80 and "\n" not in plain:
+        return inner_html
+    return (
+        "<div class='clip' role='button' title='Click to expand/collapse' "
+        "onclick=\"event.stopPropagation();this.classList.toggle('open')\">"
+        f"{inner_html}</div>"
+    )
+
+
+def _gi_row(
+    label: str,
+    value: str = "",
+    absent: str = "",
+    *,
+    rich: str | None = None,
+) -> str:
+    if rich is not None:
+        shown = _clip(rich, value)
+    elif value:
+        shown = _clip(esc(value), value)
+    else:
+        shown = f"<span class='muted'>{esc(absent)}</span>"
+    return (
+        f"<div class='gi'><span class='gi-k'>{esc(label)}</span>"
+        f"<div class='gi-v'>{shown}</div></div>"
+    )
+
+
+def _tab_panel(c: Component, gf: str, active: bool) -> str:
+    graded = c.has_gt(gf)
+    parts = []
+    if graded:
+        parts.append(f"<div class='panel-grade'>{_grade_tag(c.grades[gf])}</div>")
+    parts.append(_gi_row("Ground truth", c.gt.get(gf, ""),
+                         "—" if graded else "no GT"))
+    parts.append(_gi_row("Inferred", c.inferred.get(gf, ""), "—"))
+    if graded:
+        reason = c.eq_reasons.get(gf, "")
+        if reason:
+            plain, html = _fmt_equality(reason)
+            parts.append(_gi_row("Equality", plain, "", rich=html))
+    key = PIPELINE_REASON_KEY[gf]
+    story_fallback = c.license_reason if key == "license" else c.copyright_reason
+    pr = c.pipeline_reason.get(key) or story_fallback
+    if pr:
+        parts.append(_gi_row("Pipeline reasoning", pr, ""))
+    if gf == "license_code_url":
+        if c.download_outcome:
+            parts.append(_gi_row("Download", c.download_outcome, ""))
+        if c.license_file_path:
+            parts.append(_gi_row("Downloaded file", c.license_file_path, ""))
+        if c.license_file_original_url:
+            parts.append(_gi_row("Original URL", c.license_file_original_url, ""))
+    cls = "tabpanel active" if active else "tabpanel"
+    return f"<div class='{cls}' data-panel='{gf}'>{''.join(parts)}</div>"
+
+
+def _component_detail(c: Component) -> str:
+    tabs = "".join(
+        f"<button class='tab{' active' if i == 0 else ''}' "
+        f"data-tab='{gf}' onclick='selTab(this)'>{esc(FIELD_LABEL[gf])}</button>"
+        for i, gf in enumerate(GT_FIELDS)
+    )
+    panels = "".join(_tab_panel(c, gf, i == 0) for i, gf in enumerate(GT_FIELDS))
+    return (
+        "<div class='expand'>"
+        f"{_strip(c)}"
+        "<div class='tabs'>"
+        f"<div class='tabbar' role='tablist'>{tabs}</div>"
+        f"<div class='tabpanels'>{panels}</div>"
+        "</div></div>"
+    )
 
 
 CSS = """
 :root{
   --bg:#0f172a;--panel:#ffffff;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;
-  --soft:#f8fafc;
+  --soft:#f8fafc;--sticky-main:4.75rem;
 }
 *{box-sizing:border-box}
+html{scrollbar-gutter:stable}
 body{margin:0;background:#eef2f7;color:var(--ink);
   font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 .wrap{max-width:1120px;margin:0 auto;padding:32px 20px 80px}
-header.top{margin-bottom:24px}
+header.top{position:sticky;top:0;z-index:3;margin:0 0 24px;padding:10px 0 8px;
+  background:#eef2f7}
 header.top h1{margin:0 0 4px;font-size:24px;letter-spacing:-.02em}
 header.top .sub{color:var(--muted);font-size:14px}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;
   padding:22px 24px;margin:0 0 20px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.panel > h2,.panel > .sec-head{position:sticky;top:var(--sticky-main);z-index:2;
+  background:var(--panel);padding:4px 0 8px;margin:0 0 6px}
 .panel h2{margin:0 0 6px;font-size:18px;letter-spacing:-.01em}
+.panel > .sec-head h2{margin:0}
 .muted{color:var(--muted);font-size:13.5px;margin:0 0 16px;max-width:70ch}
 .warn{background:#fef3c7;border:1px solid #fde68a;color:#92400e;padding:10px 14px;
   border-radius:10px;font-size:13.5px;margin:12px 0}
@@ -786,25 +997,72 @@ table.grid td.num,table.grid th.num{text-align:right;font-variant-numeric:tabula
 .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:middle}
 .dot.gdot{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;
   font-size:9px;font-weight:700;color:#fff;font-style:normal}
+table.comps{table-layout:fixed;width:100%}
 table.comps th[data-sort]{cursor:pointer;user-select:none}
 table.comps th[data-sort]:hover{color:var(--ink)}
-table.comps td.rank{color:var(--muted);width:34px;text-align:right}
-table.comps td.name{font-weight:600;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-table.comps td.barcell{width:34%}
+table.comps th.rank,table.comps td.rank{width:2.5rem;color:var(--muted);text-align:right}
+table.comps th.name,table.comps td.name{width:26%;max-width:none;overflow-wrap:anywhere;
+  word-break:break-word}
+.cname{font-weight:600;line-height:1.3}
+.cver{font-weight:400;font-size:12.5px;color:var(--muted);line-height:1.3;
+  font-variant-numeric:tabular-nums}
+.cmeta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px}
+table.comps th.barcell,table.comps td.barcell{width:30%}
+table.comps th.num,table.comps td.num{width:9%}
 table.comps td.total{white-space:nowrap}
 .crow{cursor:pointer}
 .crow:hover{background:var(--soft)}
 .badge{display:inline-block;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:999px;
-  margin-left:8px;vertical-align:middle;text-transform:uppercase;letter-spacing:.03em}
+  vertical-align:middle;text-transform:uppercase;letter-spacing:.03em}
 .badge.cache{background:#e2e8f0;color:#475569}
 .drow{display:none}
 .drow.open{display:table-row}
-.drow td{background:var(--soft)}
-.detail{display:grid;grid-template-columns:150px 1fr;gap:6px 18px;padding:6px 2px;font-size:13px}
-.detail .dk{color:var(--muted);text-align:right;text-transform:uppercase;font-size:11px;letter-spacing:.03em;padding-top:2px}
-.detail .dv{white-space:pre-wrap;word-break:break-word}
-.gtag{display:inline-block;color:#fff;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;letter-spacing:.02em}
-.chips{display:inline-flex;gap:3px;margin-left:8px;vertical-align:middle}
+.drow > td{background:var(--soft);overflow:hidden}
+.gtag{display:inline-flex;align-items:center;gap:5px;color:#fff;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;letter-spacing:.02em}
+.chips{display:inline-flex;gap:3px;flex-wrap:wrap}
+.sec-head{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.allbtns{display:flex;gap:8px}
+.allbtn{font:inherit;font-size:12px;color:var(--muted);background:var(--soft);
+  border:1px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer}
+.allbtn:hover{color:var(--ink);border-color:#cbd5e1}
+.expand{padding:6px 2px 4px;font-size:13px;max-width:100%;min-width:0;
+  overflow-wrap:anywhere;word-break:break-word}
+.strip{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;padding:2px 2px 12px;
+  border-bottom:1px solid var(--line);margin-bottom:12px}
+.strip-purl{display:flex;align-items:center;gap:8px;flex:1 1 100%}
+.si-k{color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.03em;
+  display:inline-flex;align-items:center;gap:5px}
+.strip-ops{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%}
+.strip-ops .op{background:#eef2f7;border-radius:6px;padding:2px 8px;font-size:12px;color:#475569}
+.strip-inferred{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:8px 22px;flex:1 1 100%}
+.si{display:flex;flex-direction:column;gap:2px;min-width:0}
+.si-v{word-break:break-word}
+.si .chip{width:13px;height:13px;border-radius:3px;display:inline-flex;align-items:center;
+  justify-content:center;font-style:normal;font-size:9px;font-weight:700;color:#fff;line-height:1}
+.tabbar{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:12px;flex-wrap:wrap}
+.tab{font:inherit;font-size:13px;font-weight:600;color:var(--muted);background:none;border:none;
+  border-bottom:2px solid transparent;padding:7px 12px;cursor:pointer;margin-bottom:-1px}
+.tab:hover{color:var(--ink)}
+.tab.active{color:var(--ink);border-bottom-color:#6366f1}
+.tabpanel{display:none}
+.tabpanel.active{display:grid;grid-template-columns:130px 1fr;gap:8px 18px}
+.panel-grade{grid-column:1 / -1}
+.gi{display:contents}
+.gi-k{color:var(--muted);text-align:right;text-transform:uppercase;font-size:11px;
+  letter-spacing:.03em;padding-top:2px}
+.gi-v{white-space:pre-wrap;word-break:break-word;min-width:0}
+.clip{max-height:1.5em;overflow:hidden;cursor:pointer;white-space:nowrap;
+  color:var(--muted);
+  -webkit-mask-image:linear-gradient(90deg,#000 50%,transparent);
+  mask-image:linear-gradient(90deg,#000 50%,transparent)}
+.clip:hover{color:#475569}
+.clip.open{max-height:none;overflow:visible;white-space:pre-wrap;color:inherit;
+  -webkit-mask-image:none;mask-image:none}
+.clip.open:hover{color:inherit}
+.eq-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:1px 7px;
+  border-radius:999px;margin-right:8px;vertical-align:baseline;background:#e0e7ff;
+  color:#3730a3;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
 .chips .chip{width:13px;height:13px;border-radius:3px;display:inline-flex;align-items:center;
   justify-content:center;font-style:normal;font-size:9px;font-weight:700;color:#fff;line-height:1}
 table.grid td .sub{color:var(--muted);font-size:11px;font-weight:400}
@@ -824,6 +1082,22 @@ JS = """
 function tgl(row){
   var d = row.nextElementSibling;
   if(d && d.classList.contains('drow')) d.classList.toggle('open');
+}
+function selTab(btn){
+  var tabs = btn.parentElement;            // .tabbar
+  var wrap = tabs.parentElement;           // .tabs (per-row)
+  var key = btn.getAttribute('data-tab');
+  tabs.querySelectorAll('.tab').forEach(function(t){
+    t.classList.toggle('active', t === btn);
+  });
+  wrap.querySelectorAll('.tabpanel').forEach(function(p){
+    p.classList.toggle('active', p.getAttribute('data-panel') === key);
+  });
+}
+function openAll(open){
+  document.querySelectorAll('#comps tr.drow').forEach(function(d){
+    d.classList.toggle('open', open);
+  });
 }
 (function(){
   var tbl = document.getElementById('comps');
@@ -871,7 +1145,7 @@ def build_html(run: RunData) -> str:
     footer = (
         "<footer>Generated "
         f"{esc(generated)} from <code>{esc(run.run_dir)}</code>. "
-        "Durations are from Story <code>timing_s=</code> lines. Equality-judge "
+        f"{_MMSS_NOTE} Equality-judge "
         "calls are not timed by the app and are excluded from compute totals."
         "</footer>"
     )
@@ -888,10 +1162,26 @@ def build_html(run: RunData) -> str:
     )
 
 
+def unique_path(path: Path) -> Path:
+    """If ``path`` exists, return ``stem (1).suffix``, ``stem (2).suffix``, …"""
+    if not path.exists():
+        return path
+    stem, suffix, parent = path.stem, path.suffix, path.parent
+    n = 1
+    while True:
+        candidate = parent / f"{stem} ({n}){suffix}"
+        if not candidate.exists():
+            return candidate
+        n += 1
+
+
 def write_runtime_report(run_dir: Path, out: Path | None = None) -> Path:
-    """Load run artifacts, write HTML, return the path written."""
+    """Load run artifacts, write HTML, return the path written.
+
+    Never overwrites: if the target exists, writes ``name (1).html``, etc.
+    """
     run = load_run(run_dir)
-    path = out or (run_dir / "runtime_report.html")
+    path = unique_path(out or (run_dir / "runtime_report.html"))
     path.write_text(build_html(run), encoding="utf-8")
     return path
 
@@ -916,16 +1206,15 @@ def main(argv: list[str] | None = None) -> int:
             f"warning: no per-component stories found under {args.run_dir}",
             file=sys.stderr,
         )
-    out = args.out or (args.run_dir / "runtime_report.html")
-    out.write_text(build_html(run), encoding="utf-8")
+    out = write_runtime_report(args.run_dir, args.out)
 
     timed = sum(1 for c in run.components if c.total > 0)
     grand = sum(c.total for c in run.components)
     print(f"Wrote {out}")
     print(
         f"  components: {len(run.components)} ({timed} timed), "
-        f"total compute: {fmt_dur(grand)}, "
-        f"wall: {fmt_dur(run.wall_seconds)}"
+        f"total compute: {fmt_dur(grand)} {_MMSS_HINT}, "
+        f"wall: {fmt_dur(run.wall_seconds)} {_MMSS_HINT}"
     )
     if run.audit is not None:
         rates = ", ".join(
