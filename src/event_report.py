@@ -9,8 +9,17 @@ Usage (Windows venv):
     .\\.venv\\Scripts\\python.exe src\\event_report.py <run_dir | events.jsonl>
     ... --component <slug>       ordered timeline for one component
     ... --op <name>              restrict latency/slowest to one op
-    ... --tail-over <seconds>    list only spans at/over this duration
+    ... --tail-over <seconds>    list spans at/over this duration, plus any
+                                  still-open op older than it (tagged OPEN)
     ... --top <n>                how many slowest ops to show (default 10)
+
+Mid-flight runs: an op that has a ``start`` record but no matching ``end``
+yet (still running, or the process died mid-call) is an *open span*. These
+are reported separately in ``== in-flight ==`` (age = time since its start,
+measured against the newest ``mono`` timestamp seen in the log -- so this
+works whether the process is still alive or not) and folded into
+``--tail-over``/concurrency so a hung or slow-but-alive op is visible even
+before it ever writes an ``end`` record.
 """
 
 from __future__ import annotations
@@ -82,16 +91,43 @@ class Spans:
                 }
             )
 
+    def open_spans(self) -> list[dict[str, Any]]:
+        """Started ops with no matching ``end`` yet -- the in-flight ones."""
+        out = []
+        for start in self._open.values():
+            out.append(
+                {
+                    "op": start.get("op"),
+                    "stage": start.get("stage"),
+                    "slug": start.get("slug"),
+                    "status": "open",
+                    "attempt": start.get("attempt"),
+                    "label": start.get("label"),
+                    "dur_s": None,
+                    "start_mono": start.get("mono"),
+                    "end_mono": None,
+                }
+            )
+        return out
 
-def _load(path: Path) -> dict[str, Any]:
+
+def _load_from_records(records: Iterator[dict[str, Any]]) -> dict[str, Any]:
+    """Core aggregation, decoupled from file I/O so it's directly testable."""
     spans = Spans()
     points: dict[str, list[dict[str, Any]]] = {}
     retries: dict[str, int] = {}
     cache = {"read_hit": 0, "read_miss": 0, "write": 0}
     total = 0
-    for rec in _iter_records(path):
+    now_mono: float | None = None
+    last_ts: str | None = None
+    for rec in records:
         total += 1
         spans.feed(rec)
+        mono = rec.get("mono")
+        if isinstance(mono, (int, float)) and (now_mono is None or mono > now_mono):
+            now_mono = mono
+        if rec.get("ts"):
+            last_ts = rec.get("ts")
         op = rec.get("op")
         phase = rec.get("phase")
         if op == "retry":
@@ -106,10 +142,17 @@ def _load(path: Path) -> dict[str, Any]:
     return {
         "lines": total,
         "spans": spans.done,
+        "open": spans.open_spans(),
+        "now_mono": now_mono,
+        "last_ts": last_ts,
         "points": points,
         "retries": retries,
         "cache": cache,
     }
+
+
+def _load(path: Path) -> dict[str, Any]:
+    return _load_from_records(_iter_records(path))
 
 
 def _first(points: dict[str, list[dict[str, Any]]], key: str) -> dict[str, Any] | None:
@@ -145,12 +188,23 @@ def _status_tally(spans: list[dict[str, Any]], op: str) -> dict[str, int]:
     return out
 
 
-def _concurrency(spans: list[dict[str, Any]], op: str = "component") -> str:
+def _concurrency(
+    spans: list[dict[str, Any]],
+    open_spans: list[dict[str, Any]],
+    now_mono: float | None,
+    op: str = "component",
+) -> str:
     intervals = [
         (s["start_mono"], s["end_mono"])
         for s in spans
         if s["op"] == op and s["start_mono"] is not None and s["end_mono"] is not None
     ]
+    open_n = 0
+    if now_mono is not None:
+        for s in open_spans:
+            if s["op"] == op and s["start_mono"] is not None:
+                intervals.append((s["start_mono"], now_mono))
+                open_n += 1
     if not intervals:
         return "no component spans"
     events: list[tuple[float, int]] = []
@@ -167,15 +221,18 @@ def _concurrency(spans: list[dict[str, Any]], op: str = "component") -> str:
     window = t1 - t0
     busy = sum(b - a for a, b in intervals)
     avg = busy / window if window > 0 else 0.0
+    open_note = f"  (incl. {open_n} still-open)" if open_n else ""
     return (
         f"peak={peak}  avg={avg:.1f}  window={window:.0f}s  "
-        f"spans={len(intervals)}"
+        f"spans={len(intervals)}{open_note}"
     )
 
 
 def _report(data: dict[str, Any], top: int, only_op: str | None, tail_over: float | None) -> str:
     points = data["points"]
     spans = data["spans"]
+    open_spans = data["open"]
+    now_mono = data["now_mono"]
     out: list[str] = []
 
     run_start = _first(points, "run:start")
@@ -191,6 +248,10 @@ def _report(data: dict[str, Any], top: int, only_op: str | None, tail_over: floa
             f"run_id={run_start.get('run_id')} components={run_start.get('components')} "
             f"model={run_start.get('model')} workers={run_start.get('workers')}"
         )
+    status = "COMPLETE" if run_end else "IN FLIGHT (no run:end yet)"
+    out.append(f"status: {status}")
+    if data.get("last_ts"):
+        out.append(f"last event: {data['last_ts']}")
     out.append(f"log lines: {data['lines']}")
     if pre:
         out.append(f"preflight: {_fmt(pre.get('dur_s'))}s")
@@ -215,17 +276,48 @@ def _report(data: dict[str, Any], top: int, only_op: str | None, tail_over: floa
 
     out.append("")
     out.append("== concurrency (component overlap) ==")
-    out.append(_concurrency(spans))
+    out.append(_concurrency(spans, open_spans, now_mono))
+
+    out.append("")
+    out.append("== in-flight (open spans, age vs last event) ==")
+    ages = [
+        (round(now_mono - s["start_mono"], 3), s)
+        for s in open_spans
+        if now_mono is not None and s["start_mono"] is not None
+        and (only_op is None or s["op"] == only_op)
+    ]
+    if not ages:
+        out.append("none")
+    else:
+        ages.sort(key=lambda pair: -pair[0])
+        for age, s in ages:
+            extra = ""
+            if s.get("stage"):
+                extra += f" stage={s['stage']}"
+            if s.get("label"):
+                extra += f" label={s['label']}"
+            if s.get("attempt"):
+                extra += f" attempt={s['attempt']}"
+            out.append(f"{age:>8.1f}s  {s['op']:<18} {s['slug'] or ''}{extra}")
 
     out.append("")
     if tail_over is not None:
-        out.append(f"== spans >= {tail_over:g}s ==")
-        tail = [s for s in spans if s["dur_s"] is not None and s["dur_s"] >= tail_over]
+        out.append(f"== spans/open-ops >= {tail_over:g}s ==")
+        tail = [
+            (s["dur_s"], s, "")
+            for s in spans
+            if s["dur_s"] is not None and s["dur_s"] >= tail_over
+        ]
+        tail += [
+            (age, s, " [OPEN]")
+            for age, s in ages
+            if age >= tail_over
+        ]
         if only_op:
-            tail = [s for s in tail if s["op"] == only_op]
-        tail.sort(key=lambda s: -s["dur_s"])
-        for s in tail[: max(top, len(tail))]:
-            out.append(f"{s['dur_s']:>8.1f}s  {s['op']:<18} {s['slug'] or ''}")
+            tail = [t for t in tail if t[1]["op"] == only_op]
+        tail.sort(key=lambda t: -t[0])
+        for dur, s, tag in tail[: max(top, len(tail))]:
+            out.append(f"{dur:>8.1f}s  {s['op']:<18} {s['slug'] or ''}{tag}")
     else:
         out.append(f"== slowest {top} ops ==")
         pool = [s for s in spans if s["dur_s"] is not None]
