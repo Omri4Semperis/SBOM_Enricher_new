@@ -15,14 +15,16 @@ Windows / PowerShell project. The interpreter is the in-repo venv at
 
 ## Test suite (offline, safe, default)
 
-The suite never hits live providers — `tests/conftest.py` puts `src/` on the
-path and mocks preflight, so this is the go-to check after any change.
+`tests/conftest.py` puts `src/` on the path and autouse-mocks `preflight`.
+Individual tests monkeypatch Claude/Azure/HTTP — the suite does not call live
+providers when tests are written correctly. Go-to check after any change:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Expected result: exit 0. Useful variants:
+Expected: exit 0. Baseline on this repo: **141 passed** (~60–90s). Useful
+variants:
 
 ```powershell
 # one file
@@ -42,15 +44,17 @@ py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install pytest
 ```
 
-Runtime deps (`requirements.txt`): `openai`, `azure-identity`,
-`azure-ai-projects`, `requests`, `pypdf`. Pytest is not listed there, so install
-it separately in a fresh venv.
+`requirements.txt` uses `openai`, `azure-identity`, `requests`. It also pins
+`azure-ai-projects` and `pypdf` — not imported by current `src/` (legacy pins;
+safe to install). Pytest is not listed there; install it separately in a fresh
+venv.
 
 ## Live enrichment run
 
 `src/main.py` uses bare imports (`from config import ...`), so run the script by
 path — Python puts `src/` on `sys.path` automatically. It takes an optional
-config path; default is `configs/default.json`.
+config path; default is `configs/default.json` (currently `GT_220.csv`, 20
+workers, `cache_write: caches`).
 
 ```powershell
 # default config
@@ -68,11 +72,12 @@ Output is a new run dir printed to stdout (progress/logs go to stderr). See the
 
 - **Claude CLI** — the `claude` executable must be on PATH and authenticated
   (inference + preflight shell out to it).
-- **Azure AD** — `DefaultAzureCredential` must resolve a token for
-  `cognitiveservices.azure.com` (e.g. `az login`), for GPT-4.1
-  copyright/equality.
+- **Azure AD** — `DefaultAzureCredential` must resolve a token for scope
+  `https://cognitiveservices.azure.com/.default` (e.g. `az login`). Deployment
+  `gpt-4.1-limitless` and endpoint live in `gpt41_client.py`.
 
-If you only need to validate code, run the test suite instead — it mocks both.
+If you only need to validate code, run the test suite — preflight is mocked
+there and provider calls are faked per test.
 
 ## Runtime report
 
@@ -98,4 +103,5 @@ Regenerate or open a report for an existing run with:
 Relative paths resolve against the repo root. For a cheap cache-backed smoke
 run, point `input_file_path` at a tiny CSV and `cache_read` at a populated
 cache. Startup preflight still requires both live credentials; after it passes,
-cache hits skip per-component provider calls.
+cache hits skip enrichment LLM calls. In audit mode, cache hits still run
+equality (URL downloads + possible GPT judges).
