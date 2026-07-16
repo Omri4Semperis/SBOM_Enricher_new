@@ -13,6 +13,7 @@ from retry import with_retries
 
 LICENSE_KEYS = ("license_name", "license_code_url", "reasoning")
 COPYRIGHT_KEYS = ("copyright", "reasoning")
+CLAUDE_TIMEOUT_S = 1200.0
 
 
 class TransientFailure(Exception):
@@ -96,7 +97,14 @@ async def _claude_once(
         stderr=subprocess.PIPE,
         cwd=str(Path.home()),
     )
-    stdout, stderr = await proc.communicate()
+    try:
+        stdout, stderr = await asyncio.wait_for(
+            proc.communicate(), timeout=CLAUDE_TIMEOUT_S
+        )
+    except asyncio.TimeoutError as exc:
+        proc.kill()
+        await proc.wait()
+        raise HardFailure(f"claude timed out after {CLAUDE_TIMEOUT_S:.0f}s") from exc
     if proc.returncode != 0:
         err = stderr.decode(errors="replace")
         low = err.lower()

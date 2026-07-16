@@ -1,6 +1,6 @@
 # DECISIONS — freeze-prevention changes (run 380 event-loop wedge)
 
-Status: IN PROGRESS (grilling). Decisions land here as each branch resolves.
+Status: IMPLEMENTED (2026-07-16). Async Azure creds + Claude 1200s kill/fail-closed.
 
 ## Subject
 
@@ -40,13 +40,11 @@ hang forever — so no separate watchdog/supervisor is needed.
    with diagnostics; never silently freeze. Throughput and accuracy are out of
    scope (covered in `perf_analysis_20260716_run380.md`).
 
-2. **Root-cause fix: async Azure credentials.** In `gpt41_client.py`, import
-   `DefaultAzureCredential` + `get_bearer_token_provider` from
-   `azure.identity.aio` (confirmed present, v1.25.3) instead of `azure.identity`.
-   The token fetch becomes an awaited coroutine, so it can no longer block the
-   loop thread. One shared client per run (already refactored in the tree), so
-   this happens once, not per component. Perf impact: removes the whole-loop
-   freeze and the avg-concurrency-20.4-vs-30 gap.
+2. **Root-cause fix: offload Azure token fetch off the loop.** Keep sync
+   `azure.identity` provider; wrap it in `asyncio.to_thread` for the OpenAI
+   `azure_ad_token_provider`. (`azure.identity.aio` needs `aiohttp`, not a
+   dep — same liveness guarantee without adding one.) Token fetch can no
+   longer block the loop thread. One shared client per run (already in tree).
 
 3. **Claude subprocess wall-clock cap = 1200s, fail-closed, no retry.** Wrap
    `proc.communicate()` in `asyncio.wait_for(..., 1200)`. On timeout: `proc.kill()`

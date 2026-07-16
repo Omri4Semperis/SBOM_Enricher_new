@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 
@@ -53,9 +54,14 @@ class Gpt41Client:
     """Thin async wrapper around the fixed gpt-4.1-limitless deployment."""
 
     def __init__(self) -> None:
-        token_provider = get_bearer_token_provider(
+        # ponytail: to_thread over azure.identity.aio, add aiohttp if native async wanted
+        sync_provider = get_bearer_token_provider(
             DefaultAzureCredential(), AZURE_TOKEN_SCOPE
         )
+
+        async def token_provider() -> str:
+            return await asyncio.to_thread(sync_provider)
+
         self._client = AsyncAzureOpenAI(
             api_version=AZURE_API_VERSION,
             azure_endpoint=AZURE_ENDPOINT,

@@ -199,3 +199,36 @@ def test_infer_copyright_web_hard_failure_unknown(monkeypatch):
     assert "hard failure" in out["reasoning"]
     assert calls["n"] == 1
     assert meta.billable_calls == 0
+
+
+def test_subprocess_timeout_kills_no_retry(monkeypatch):
+    calls = {"n": 0}
+    proc = MagicMock()
+    proc.returncode = None
+    proc.kill = MagicMock()
+    proc.wait = AsyncMock(return_value=0)
+
+    async def hang():
+        await asyncio.sleep(3600)
+        return b"", b""
+
+    proc.communicate = hang
+
+    async def fake_exec(*_a, **_k):
+        calls["n"] += 1
+        return proc
+
+    monkeypatch.setattr(claude_client, "CLAUDE_TIMEOUT_S", 0.05)
+    monkeypatch.setattr(claude_client.asyncio, "create_subprocess_exec", fake_exec)
+
+    out, meta = asyncio.run(
+        claude_client.infer_license("pkg:npm/x@1", "x", "1", "claude-haiku-4-5")
+    )
+    assert out["license_name"] == "UNKNOWN"
+    assert "hard failure" in out["reasoning"]
+    assert "timed out" in out["reasoning"]
+    assert calls["n"] == 1
+    assert out["attempts"] == 1
+    assert proc.kill.called
+    assert proc.wait.await_count == 1
+    assert meta.billable_calls == 0
