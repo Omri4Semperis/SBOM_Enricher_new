@@ -40,15 +40,16 @@ class _FanoutWriter:
 
 
 def run(config: Config) -> Path:
-    print(f"input:  {config.input_file_path}", file=sys.stderr)
-    print(f"output: {config.output_base_path}", file=sys.stderr)
-    print(f"model:  {config.model}  workers: {config.workers}", file=sys.stderr)
+    print(f"input:      {config.input_file_path}", file=sys.stderr)
+    print(f"output:     {config.output_base_path}", file=sys.stderr)
+    print(f"model:      {config.model}", file=sys.stderr)
+    print(f"workers: {config.workers}", file=sys.stderr)
     components = read_components(config.input_file_path)
     print(f"components: {len(components)}", file=sys.stderr)
-    print("Running startup checks (Claude + Azure)…", file=sys.stderr, flush=True)
+    print("\nRunning startup checks (Claude + Azure)…\n", file=sys.stderr, flush=True)
     preflight(config)
     out = create_run_dir(config, components)
-    print(f"run dir: {out}", file=sys.stderr)
+    print(f"run dir:    {out}", file=sys.stderr)
     extras = list(components[0].extras.keys()) if components else []
     gt_columns = detect_gt_columns(extras)
     csv_path = out / results_csv_name(config.model, len(components))
