@@ -46,7 +46,7 @@ hang forever — so no separate watchdog/supervisor is needed.
 
 1. **Scope = liveness only.** The run must always make progress or die loudly
    with diagnostics; never silently freeze. Throughput and accuracy are out of
-   scope (covered in `perf_analysis_20260716_run380.md`).
+   scope (covered in `archive/perf_analysis_20260716_run380.md`).
 
 2. **Root-cause fix: offload Azure token fetch off the loop.** Keep sync
    `azure.identity` provider; wrap it in `asyncio.to_thread` for the OpenAI
