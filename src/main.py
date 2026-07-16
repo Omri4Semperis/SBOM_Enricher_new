@@ -15,6 +15,7 @@ from preflight import preflight
 from progress import Progress
 from results_csv import ExtendedWriter, ResultsWriter, detect_gt_columns, extended_csv_path
 from run_dir import create_run_dir, results_csv_name
+from runtime_report import write_runtime_report
 from scoring import write_score_csv
 from summary import build_summary, write_summary
 
@@ -79,6 +80,8 @@ def run(config: Config) -> Path:
             wall_seconds=wall,
         ),
     )
+    report_path = write_runtime_report(out)
+    print(f"report: {report_path}", file=sys.stderr)
     return out
 
 

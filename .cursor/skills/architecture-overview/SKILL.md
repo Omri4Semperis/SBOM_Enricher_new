@@ -83,6 +83,7 @@ of the Story by `summary.py` / `results_csv.py`.
 | `run_dir.py` | Create per-run output tree; name/short-model helpers |
 | `results_csv.py` | Stream `results_*.csv` + `results_*_extended.csv` |
 | `summary.py` | Build/write `summary.json`; parse Story timings/reasons |
+| `runtime_report.py` | Post-run HTML report (timings + audit accuracy); also CLI |
 | `progress.py` | Live stderr progress bar + ETA |
 
 ## Audit mode
@@ -107,6 +108,7 @@ results_{Model}_{n}.csv           main output (triplet columns)
 results_{Model}_{n}_extended.csv  + raw/cost/cache/timing detail
 score.csv         audit tally (audit mode only)
 summary.json      run-level aggregates (timings, cost buckets)
+runtime_report.html  self-contained time + accuracy report
 ```
 
 ## Cross-cutting conventions
