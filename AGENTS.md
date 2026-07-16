@@ -16,3 +16,7 @@ At session start, check for `docs/HANDOFF.md` (repo root):
 - When you finish acting on it, add `Consumed: {YYYY-MM-DD}` under its
   title; the stamp, not deletion, is what retires it.
 - Exists, already `Consumed:` → spent. Offer to delete it, then proceed.
+
+## Your style
+
+Be Extremely concise. Sacrifice grammar for concision.
