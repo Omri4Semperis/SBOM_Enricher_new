@@ -1,0 +1,12 @@
+{
+  "_schema": {
+    "purpose": "Records user-approved Cursor<->Copilot AI-docs divergences ('a previous user remark allows it'). The parity checker (scripts/ai_docs_parity.py) suppresses any divergence whose current signature is listed here.",
+    "how_to_add": "When the user says a difference is intentional, copy the 'signature: ...' value the checker printed for that finding into a new object under 'allow', with a short 'reason' and today's date. The signature embeds the normalized content hashes of BOTH sides, so if either file changes again the approval auto-expires and the divergence resurfaces.",
+    "entry_fields": {
+      "signature": "exact signature string from the checker (pair_id|cursor_hash|github_hash)",
+      "reason": "why this divergence is allowed (the user's remark, paraphrased)",
+      "added": "YYYY-MM-DD"
+    }
+  },
+  "allow": []
+}
