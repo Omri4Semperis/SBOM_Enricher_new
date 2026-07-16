@@ -43,7 +43,7 @@ def run(config: Config) -> Path:
     print(f"input:      {config.input_file_path}", file=sys.stderr)
     print(f"output:     {config.output_base_path}", file=sys.stderr)
     print(f"model:      {config.model}", file=sys.stderr)
-    print(f"workers: {config.workers}", file=sys.stderr)
+    print(f"workers:    {config.workers}", file=sys.stderr)
     components = read_components(config.input_file_path)
     print(f"components: {len(components)}", file=sys.stderr)
     print("\nRunning startup checks (Claude + Azure)…\n", file=sys.stderr, flush=True)
