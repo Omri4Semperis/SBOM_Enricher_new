@@ -41,7 +41,9 @@ async def _fake_download(claude_url, purl, dest_dir, slug):
     )
 
 
-async def _fake_copyright(license_text, purl="", lib_name="", version="", model=""):
+async def _fake_copyright(
+    _client, license_text, purl="", lib_name="", version="", model=""
+):
     return {
         "copyright": "Copyright (c) 2020 Jane Doe",
         "reasoning": "verbatim notice",
@@ -167,6 +169,12 @@ def test_fixture_run_extended_csv_and_summary(tmp_path, monkeypatch):
     assert timings["avg_infer_seconds"] is not None
     assert timings["avg_download_seconds"] is not None
     assert timings["avg_copyright_seconds"] is not None
+
+    report_path = out / "runtime_report.html"
+    assert report_path.is_file()
+    report = report_path.read_text(encoding="utf-8")
+    assert "Where did the time go" in report
+    assert "Components" in report
 
 
 def test_build_summary_cache_hit_zero_cost(tmp_path):

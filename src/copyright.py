@@ -110,7 +110,9 @@ def _npm_author_copyright(purl: str) -> str | None:
     return None
 
 
-async def extract_copyright(license_text: str) -> tuple[dict, CallMeta]:
+async def extract_copyright(
+    client: Gpt41Client, license_text: str
+) -> tuple[dict, CallMeta]:
     """Extract {copyright, reasoning} from LICENSE text via GPT-4.1.
 
     Placeholder / failure / empty ⇒ copyright UNKNOWN. No fallbacks.
@@ -122,7 +124,7 @@ async def extract_copyright(license_text: str) -> tuple[dict, CallMeta]:
     system, user = copyright_prompt(license_text)
     meta = CallMeta()
     try:
-        data, meta = await Gpt41Client().complete_json(system, user)
+        data, meta = await client.complete_json(system, user)
     except Exception as e:  # noqa: BLE001 — fail closed per component
         meta = getattr(e, "meta", None) or meta
         return _unknown(f"retries exhausted: {e}"), meta
@@ -143,6 +145,7 @@ async def extract_copyright(license_text: str) -> tuple[dict, CallMeta]:
 
 
 async def resolve_copyright(
+    client: Gpt41Client,
     license_text: str,
     purl: str,
     lib_name: str,
@@ -150,7 +153,7 @@ async def resolve_copyright(
     model: str,
 ) -> tuple[dict, CallMeta]:
     """File → npm author → Claude web → UNKNOWN. Never overwrite an earlier success."""
-    file_data, file_meta = await extract_copyright(license_text)
+    file_data, file_meta = await extract_copyright(client, license_text)
     if file_data["copyright"].upper() != "UNKNOWN" and not _is_stray_holder(
         file_data["copyright"], purl, lib_name
     ):

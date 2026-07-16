@@ -60,6 +60,7 @@ async def process_component(
     comp: Component,
     run_dir: Path,
     model: str,
+    client: Gpt41Client,
     *,
     cache_read: Path | None = None,
     cache_write: Path | None = None,
@@ -127,7 +128,7 @@ async def process_component(
         text = result.license_file_path.read_text(encoding="utf-8", errors="replace")
     t2 = time.perf_counter()
     cr = await resolve_copyright(
-        text, comp.purl, comp.lib_name, comp.version, model
+        client, text, comp.purl, comp.lib_name, comp.version, model
     )
     # Fakes may still return a plain dict; real resolver returns (dict, CallMeta).
     if isinstance(cr, tuple):
@@ -206,7 +207,7 @@ async def run_workers(
     gt_columns: list[str] | None = None,
 ) -> list[ComponentResult]:
     gt_columns = list(gt_columns or [])
-    client = Gpt41Client() if gt_columns else None
+    client = Gpt41Client()
     sem = asyncio.Semaphore(config.workers)
     results: list[ComponentResult] = []
 
@@ -216,6 +217,7 @@ async def run_workers(
                 comp,
                 run_dir,
                 config.model,
+                client,
                 cache_read=config.cache_read,
                 cache_write=config.cache_write,
             )

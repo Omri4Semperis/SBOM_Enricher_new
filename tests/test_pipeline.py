@@ -39,7 +39,7 @@ async def _fake_download(claude_url, purl, dest_dir, slug):
     )
 
 
-async def _fake_copyright(license_text, purl="", lib_name="", version="", model=""):
+async def _fake_copyright(_client, license_text, purl="", lib_name="", version="", model=""):
     return {
         "copyright": "Copyright (c) 2020 Jane Doe",
         "reasoning": "verbatim notice",
@@ -109,7 +109,9 @@ def test_process_records_license_file_path(tmp_path, monkeypatch):
     run = tmp_path / "run"
     (run / "per_component" / comp.slug).mkdir(parents=True)
 
-    result = asyncio.run(pipeline.process_component(comp, run, "claude-haiku-4-5"))
+    result = asyncio.run(
+        pipeline.process_component(comp, run, "claude-haiku-4-5", AsyncMock())
+    )
     assert result.inferred_license_code_url == (
         "https://raw.githubusercontent.com/foo/bar/main/LICENSE"
     )
@@ -138,7 +140,9 @@ def test_empty_purl_noted_in_story(tmp_path, monkeypatch):
     run = tmp_path / "run"
     (run / "per_component" / comp.slug).mkdir(parents=True)
 
-    result = asyncio.run(pipeline.process_component(comp, run, "claude-haiku-4-5"))
+    result = asyncio.run(
+        pipeline.process_component(comp, run, "claude-haiku-4-5", AsyncMock())
+    )
     assert result.inferred_license_name == "MIT"
     story = (run / "per_component" / comp.slug / pipeline.STORY_FILENAME).read_text(
         encoding="utf-8"
@@ -158,7 +162,7 @@ def test_no_file_still_resolves_copyright(tmp_path, monkeypatch):
             attempts=["fail https://example.com"],
         )
 
-    async def fake_resolve(license_text, purl, lib_name, version, model):
+    async def fake_resolve(_client, license_text, purl, lib_name, version, model):
         assert license_text == ""
         return {"copyright": "UNKNOWN", "reasoning": "empty license text"}
 
@@ -180,7 +184,9 @@ def test_no_file_still_resolves_copyright(tmp_path, monkeypatch):
     run = tmp_path / "run"
     (run / "per_component" / comp.slug).mkdir(parents=True)
 
-    result = asyncio.run(pipeline.process_component(comp, run, "claude-haiku-4-5"))
+    result = asyncio.run(
+        pipeline.process_component(comp, run, "claude-haiku-4-5", AsyncMock())
+    )
     assert result.inferred_copyright == "UNKNOWN"
     assert result.license_file_path is None
     resolve.assert_awaited_once()
@@ -226,7 +232,7 @@ def test_cache_hit_skips_stages(tmp_path, monkeypatch):
 
     result = asyncio.run(
         pipeline.process_component(
-            comp, run, "claude-haiku-4-5", cache_read=cache_dir
+            comp, run, "claude-haiku-4-5", AsyncMock(), cache_read=cache_dir
         )
     )
     assert result.from_cache is True
@@ -266,7 +272,7 @@ def test_cache_write_on_full_success(tmp_path, monkeypatch):
 
     result = asyncio.run(
         pipeline.process_component(
-            comp, run, "claude-haiku-4-5", cache_write=cache_dir
+            comp, run, "claude-haiku-4-5", AsyncMock(), cache_write=cache_dir
         )
     )
     assert result.from_cache is False
@@ -277,7 +283,9 @@ def test_cache_write_on_full_success(tmp_path, monkeypatch):
 
 
 def test_cache_write_skips_unknown_copyright(tmp_path, monkeypatch):
-    async def unknown_copyright(license_text, purl="", lib_name="", version="", model=""):
+    async def unknown_copyright(
+        _client, license_text, purl="", lib_name="", version="", model=""
+    ):
         return {"copyright": "UNKNOWN", "reasoning": "none found"}
 
     monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
@@ -301,7 +309,7 @@ def test_cache_write_skips_unknown_copyright(tmp_path, monkeypatch):
 
     asyncio.run(
         pipeline.process_component(
-            comp, run, "claude-haiku-4-5", cache_write=cache_dir
+            comp, run, "claude-haiku-4-5", AsyncMock(), cache_write=cache_dir
         )
     )
     assert read_cache(cache_dir, "solo@1.0") is None
@@ -383,3 +391,42 @@ def test_non_gt_fixture_no_is_eq_no_score(tmp_path, monkeypatch):
         "notes",
     ]
     assert not (out / "score.csv").exists()
+
+
+def test_non_audit_run_shares_one_gpt_client(tmp_path, monkeypatch):
+    client = object()
+    factory_calls = 0
+    received_clients = []
+
+    def make_client():
+        nonlocal factory_calls
+        factory_calls += 1
+        return client
+
+    async def fake_copyright(
+        received_client, license_text, purl="", lib_name="", version="", model=""
+    ):
+        received_clients.append(received_client)
+        return {
+            "copyright": "Copyright (c) 2020 Jane Doe",
+            "reasoning": "verbatim notice",
+        }
+
+    monkeypatch.setattr(pipeline, "Gpt41Client", make_client)
+    monkeypatch.setattr(pipeline, "infer_license", _fake_infer)
+    monkeypatch.setattr(pipeline, "fetch_license_file", _fake_download)
+    monkeypatch.setattr(pipeline, "resolve_copyright", fake_copyright)
+    cfg = config.Config(
+        input_file_path=FIXTURE,
+        output_base_path=tmp_path / "runs",
+        run_name=None,
+        model="claude-opus-4-8",
+        workers=2,
+        cache_read=None,
+        cache_write=None,
+    )
+
+    main.run(cfg)
+
+    assert factory_calls == 1
+    assert received_clients == [client, client, client]

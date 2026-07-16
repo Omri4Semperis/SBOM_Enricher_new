@@ -93,6 +93,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction.
 """
+CLIENT = object.__new__(Gpt41Client)
 
 
 def test_extract_verbatim_from_fixture(monkeypatch):
@@ -108,7 +109,7 @@ def test_extract_verbatim_from_fixture(monkeypatch):
     monkeypatch.setattr(Gpt41Client, "complete_json", fake_complete)
     import copyright as copyright_mod
 
-    out, meta = asyncio.run(copyright_mod.extract_copyright(MIT_LICENSE))
+    out, meta = asyncio.run(copyright_mod.extract_copyright(CLIENT, MIT_LICENSE))
     assert out["copyright"] == "Copyright (c) 2020 Jane Doe"
     assert "notice" in out["reasoning"]
     assert meta.billable_calls == 1
@@ -128,7 +129,7 @@ def test_extract_placeholder_unknown(monkeypatch):
     import copyright as copyright_mod
 
     out, meta = asyncio.run(
-        copyright_mod.extract_copyright("MIT License\nCopyright (c) <year>")
+        copyright_mod.extract_copyright(CLIENT, "MIT License\nCopyright (c) <year>")
     )
     assert out["copyright"] == "UNKNOWN"
     assert "placeholder" in out["reasoning"]
@@ -145,7 +146,7 @@ def test_extract_empty_text_no_llm(monkeypatch):
     monkeypatch.setattr(Gpt41Client, "complete_json", fake_complete)
     import copyright as copyright_mod
 
-    out, meta = asyncio.run(copyright_mod.extract_copyright("   "))
+    out, meta = asyncio.run(copyright_mod.extract_copyright(CLIENT, "   "))
     assert out["copyright"] == "UNKNOWN"
     assert called["n"] == 0
     assert meta.billable_calls == 0
@@ -158,7 +159,7 @@ def test_extract_unknown_after_parse_retries(monkeypatch):
     monkeypatch.setattr(Gpt41Client, "complete_json", fake_complete)
     import copyright as copyright_mod
 
-    out, meta = asyncio.run(copyright_mod.extract_copyright(MIT_LICENSE))
+    out, meta = asyncio.run(copyright_mod.extract_copyright(CLIENT, MIT_LICENSE))
     assert out["copyright"] == "UNKNOWN"
     assert "retries exhausted" in out["reasoning"]
     assert meta.billable_calls == 0
@@ -230,7 +231,7 @@ def test_npm_author_non_npm_purl():
 def test_resolve_file_success_skips_fallbacks(monkeypatch):
     import copyright as copyright_mod
 
-    async def fake_extract(text):
+    async def fake_extract(_client, text):
         meta = CallMeta()
         meta.add_call(cost_usd=0.001, raw="{}")
         return {"copyright": "Copyright (c) File", "reasoning": "from file"}, meta
@@ -251,7 +252,7 @@ def test_resolve_file_success_skips_fallbacks(monkeypatch):
 
     out, meta = asyncio.run(
         copyright_mod.resolve_copyright(
-            MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
+            CLIENT, MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
         )
     )
     assert out["copyright"] == "Copyright (c) File"
@@ -262,7 +263,7 @@ def test_resolve_file_success_skips_fallbacks(monkeypatch):
 def test_resolve_npm_when_file_unknown(monkeypatch):
     import copyright as copyright_mod
 
-    async def fake_extract(text):
+    async def fake_extract(_client, text):
         return copyright_mod._unknown("empty license text"), CallMeta()
 
     called = {"web": 0}
@@ -280,7 +281,7 @@ def test_resolve_npm_when_file_unknown(monkeypatch):
 
     out, meta = asyncio.run(
         copyright_mod.resolve_copyright(
-            "", "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
+            CLIENT, "", "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
         )
     )
     assert out["copyright"] == "Copyright (c) Npm Author"
@@ -292,7 +293,7 @@ def test_resolve_npm_when_file_unknown(monkeypatch):
 def test_resolve_web_when_file_and_npm_unknown(monkeypatch):
     import copyright as copyright_mod
 
-    async def fake_extract(text):
+    async def fake_extract(_client, text):
         file_meta = CallMeta()
         file_meta.add_call(cost_usd=0.002, raw="file")
         return copyright_mod._unknown("no notice"), file_meta
@@ -314,7 +315,7 @@ def test_resolve_web_when_file_and_npm_unknown(monkeypatch):
 
     out, meta = asyncio.run(
         copyright_mod.resolve_copyright(
-            MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
+            CLIENT, MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
         )
     )
     assert out["copyright"] == "Copyright (c) Web Holder"
@@ -326,7 +327,7 @@ def test_resolve_web_when_file_and_npm_unknown(monkeypatch):
 def test_resolve_denylist_stray_holder_file(monkeypatch):
     import copyright as copyright_mod
 
-    async def fake_extract(text):
+    async def fake_extract(_client, text):
         return {
             "copyright": "Copyright (c) 2019 The Go Authors",
             "reasoning": "from file",
@@ -341,7 +342,7 @@ def test_resolve_denylist_stray_holder_file(monkeypatch):
 
     out, _meta = asyncio.run(
         copyright_mod.resolve_copyright(
-            MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
+            CLIENT, MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
         )
     )
     assert out["copyright"] == "UNKNOWN"
@@ -350,7 +351,7 @@ def test_resolve_denylist_stray_holder_file(monkeypatch):
 def test_resolve_keeps_normal_holder(monkeypatch):
     import copyright as copyright_mod
 
-    async def fake_extract(text):
+    async def fake_extract(_client, text):
         return {
             "copyright": "Copyright (c) 2020 John-David Dalton",
             "reasoning": "from file",
@@ -360,7 +361,7 @@ def test_resolve_keeps_normal_holder(monkeypatch):
 
     out, _meta = asyncio.run(
         copyright_mod.resolve_copyright(
-            MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
+            CLIENT, MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
         )
     )
     assert out["copyright"] == "Copyright (c) 2020 John-David Dalton"
@@ -369,7 +370,7 @@ def test_resolve_keeps_normal_holder(monkeypatch):
 def test_resolve_denylist_stray_holder_web(monkeypatch):
     import copyright as copyright_mod
 
-    async def fake_extract(text):
+    async def fake_extract(_client, text):
         return copyright_mod._unknown("empty"), CallMeta()
 
     async def fake_web(*_a, **_k):
@@ -384,7 +385,7 @@ def test_resolve_denylist_stray_holder_web(monkeypatch):
 
     out, _meta = asyncio.run(
         copyright_mod.resolve_copyright(
-            "", "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
+            CLIENT, "", "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
         )
     )
     assert out["copyright"] == "UNKNOWN"
@@ -394,7 +395,7 @@ def test_resolve_denylist_stray_holder_web(monkeypatch):
 def test_resolve_keeps_go_authors_for_golang_purl(monkeypatch):
     import copyright as copyright_mod
 
-    async def fake_extract(text):
+    async def fake_extract(_client, text):
         return {
             "copyright": "Copyright (c) 2019 The Go Authors",
             "reasoning": "from file",
@@ -404,7 +405,7 @@ def test_resolve_keeps_go_authors_for_golang_purl(monkeypatch):
 
     out, _meta = asyncio.run(
         copyright_mod.resolve_copyright(
-            MIT_LICENSE, "pkg:golang/golang.org/x/text@1", "text", "1", "claude-haiku-4-5"
+            CLIENT, MIT_LICENSE, "pkg:golang/golang.org/x/text@1", "text", "1", "claude-haiku-4-5"
         )
     )
     assert out["copyright"] == "Copyright (c) 2019 The Go Authors"
@@ -413,7 +414,7 @@ def test_resolve_keeps_go_authors_for_golang_purl(monkeypatch):
 def test_resolve_rejects_go_authors_for_non_go_purl(monkeypatch):
     import copyright as copyright_mod
 
-    async def fake_extract(text):
+    async def fake_extract(_client, text):
         return {
             "copyright": "Copyright (c) 2019 The Go Authors",
             "reasoning": "from file",
@@ -428,7 +429,7 @@ def test_resolve_rejects_go_authors_for_non_go_purl(monkeypatch):
 
     out, _meta = asyncio.run(
         copyright_mod.resolve_copyright(
-            MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
+            CLIENT, MIT_LICENSE, "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
         )
     )
     assert out["copyright"] == "UNKNOWN"
@@ -446,7 +447,7 @@ def test_copyright_prompt_has_year_and_directional_rules():
 def test_resolve_web_placeholder_rejected(monkeypatch):
     import copyright as copyright_mod
 
-    async def fake_extract(text):
+    async def fake_extract(_client, text):
         return copyright_mod._unknown("empty"), CallMeta()
 
     monkeypatch.setattr(copyright_mod, "extract_copyright", fake_extract)
@@ -464,7 +465,7 @@ def test_resolve_web_placeholder_rejected(monkeypatch):
 
     out, meta = asyncio.run(
         copyright_mod.resolve_copyright(
-            "", "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
+            CLIENT, "", "pkg:npm/foo@1", "foo", "1", "claude-haiku-4-5"
         )
     )
     assert out["copyright"] == "UNKNOWN"
