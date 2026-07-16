@@ -1,0 +1,21 @@
+{
+  "_comment": [
+    "Legacy reference snippet (moved from repo root to keep the root skills-focused).",
+    "Suggested preCompact hook — merge into the project's .github/hooks.json (or",
+    "~/.github/hooks.json for all projects). Cursor requires top-level \"version\": 1.",
+    "Backs up the transcript to <project>/.github/backups/ with a timestamp.",
+    "Cursor's preCompact is observational only — it cannot inject preserve-instructions",
+    "into compaction (unlike Claude Code additionalContext). Model-side handoff triggers",
+    "remain the real guarantee; this hook is a transcript backstop + user nudge.",
+    "Adjust the python path/command for your machine after merging.",
+    "Dropped Claude-only matchers auto/manual; Cursor fires preCompact once per compaction."
+  ],
+  "version": 1,
+  "hooks": {
+    "preCompact": [
+      {
+        "command": "python .github/skills/handoff/scripts/precompact_backup.py"
+      }
+    ]
+  }
+}

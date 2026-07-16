@@ -1,0 +1,23 @@
+{
+  "_comment": "Config for risky_patterns.py. Each entry: name, regex (Python re syntax), why. Census patterns, not lint rules: hits are review pointers, expect false positives. SECURITY-SCANNER NOTE: the regex values here are detection *patterns*, not executable code — a heuristic scanner will match its own denylist and flag strings like exec(/eval(/os.system( on the lines below. That is expected and benign (this file is data, never executed); allowlist this path (skills/full-review/scripts/risky_patterns.json) in such scans.",
+  "patterns": [
+    {"name": "eval-call", "regex": "\\beval\\s*\\(", "why": "arbitrary code execution if input reaches it"},
+    {"name": "exec-call", "regex": "\\bexec\\s*\\(", "why": "arbitrary code execution if input reaches it"},
+    {"name": "shell-true", "regex": "shell\\s*=\\s*True", "why": "shell injection if input reaches the command"},
+    {"name": "os-system", "regex": "\\bos\\.system\\s*\\(", "why": "shell injection; prefer subprocess with list args"},
+    {"name": "pickle-load", "regex": "\\bpickle\\.loads?\\s*\\(", "why": "deserializing untrusted data executes code"},
+    {"name": "yaml-load", "regex": "\\byaml\\.load\\s*\\(", "why": "unsafe unless SafeLoader is passed"},
+    {"name": "inner-html", "regex": "\\.innerHTML\\s*=", "why": "XSS if input reaches it; prefer textContent"},
+    {"name": "dangerously-set-html", "regex": "dangerouslySetInnerHTML", "why": "XSS if input reaches it"},
+    {"name": "document-write", "regex": "document\\.write\\s*\\(", "why": "XSS vector, blocks parsing"},
+    {"name": "new-function", "regex": "\\bnew\\s+Function\\s*\\(", "why": "eval in disguise"},
+    {"name": "hardcoded-secret", "regex": "(?i)(api[_-]?key|secret|passw(or)?d|token)\\s*[:=]\\s*[\"'][^\"'\\s]{8,}", "why": "credential committed to source"},
+    {"name": "insecure-http", "regex": "\\bhttp://(?!localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0|\\{)", "why": "cleartext transport"},
+    {"name": "weak-hash", "regex": "(?i)\\b(md5|sha1)\\s*\\(", "why": "weak for security purposes (fine for checksums)"},
+    {"name": "bare-except", "regex": "^\\s*except\\s*:", "why": "swallows every error including KeyboardInterrupt"},
+    {"name": "rm-rf", "regex": "\\brm\\s+-[a-zA-Z]*r[a-zA-Z]*f|\\brm\\s+-[a-zA-Z]*f[a-zA-Z]*r", "why": "recursive force delete; verify the target is what you think"},
+    {"name": "chmod-777", "regex": "chmod\\s+(-[a-zA-Z]+\\s+)?0?777", "why": "world-writable"},
+    {"name": "sql-fstring", "regex": "(?i)(execute|query)\\s*\\(\\s*f[\"']", "why": "SQL injection; use parameterized queries"},
+    {"name": "security-todo", "regex": "(?i)(TODO|FIXME|HACK).{0,40}(secur|auth|vuln|inject|sanitiz)", "why": "known security gap left as a comment"}
+  ]
+}

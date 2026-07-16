@@ -1,0 +1,26 @@
+{
+  "_comment": "git-hygiene rules. The agent edits ONLY 'allow' (user-blessed kinds/paths, fnmatch globs matched against the full repo-relative path and the bare filename; * crosses directories). Each allow entry: {pattern, why, date}. The warn lists are the template's language-agnostic defaults — extend per repo if needed. SECURITY-SCANNER NOTE: 'secret_patterns' are filename globs used to WARN when a key-shaped file (id_rsa*, *.pem, .env, …) is about to be committed — this file detects credentials by name, it never reads or contains any; allowlist this path in scans that flag it as 'reads env/credentials'.",
+  "warn_dirs": [
+    "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".tox",
+    ".venv", "venv", "node_modules", ".ipynb_checkpoints", "dist", "build",
+    "target", "out", "coverage", ".next", ".nuxt", ".gradle", ".terraform",
+    ".idea", ".vscode"
+  ],
+  "warn_extensions": [
+    ".pyc", ".pyo", ".pyd", ".class", ".o", ".obj", ".so", ".dll", ".dylib",
+    ".exe", ".log", ".tmp", ".temp", ".swp", ".swo", ".bak", ".orig", ".rej",
+    ".sqlite", ".sqlite3", ".db"
+  ],
+  "warn_files": [
+    ".DS_Store", "Thumbs.db", "desktop.ini", ".coverage", "coverage.xml"
+  ],
+  "secret_patterns": [
+    ".env", ".env.*", "*.pem", "*.key", "*.p12", "*.pfx",
+    "id_rsa*", "id_dsa*", "id_ed25519*", "*.keystore"
+  ],
+  "max_kb": 1024,
+  "allow": [
+    {"pattern": ".env.example", "why": "documentation, no secrets", "date": "template-default"},
+    {"pattern": ".env.sample", "why": "documentation, no secrets", "date": "template-default"}
+  ]
+}

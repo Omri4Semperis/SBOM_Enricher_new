@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Copilot AI-docs parity gate. SessionStart injects a heads-up (advisory).",
+    "UserPromptSubmit ENFORCES on every prompt: on unresolved divergence it returns",
+    "continue=false so the turn halts and the user sees the differences via stopReason",
+    "(no dependence on the model relaying it). Escape hatch: include the text",
+    "'parity: ignore' in your prompt to allowlist the current differences and proceed",
+    "-- so the block can never deadlock. Silent when in parity. Cursor mirror:",
+    "'beforeSubmitPrompt' in .cursor/hooks.json."
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "python scripts/ai_docs_parity.py --emit copilot",
+        "windows": ".venv\\Scripts\\python.exe scripts/ai_docs_parity.py --emit copilot",
+        "timeout": 20
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "python scripts/ai_docs_parity.py --emit copilot --block",
+        "windows": ".venv\\Scripts\\python.exe scripts/ai_docs_parity.py --emit copilot --block",
+        "timeout": 20
+      }
+    ]
+  }
+}

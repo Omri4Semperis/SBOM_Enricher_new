@@ -1,0 +1,19 @@
+{
+  "_comment": [
+    "Copilot mirror of the Cursor `beforeShellExecution` git-hygiene gate",
+    "(.cursor/hooks.json). Blocks agent-made git commits until the git-hygiene",
+    "skill has run. The scanner re-checks on stdin and fails open. Matcher regex",
+    "is kept identical to the Cursor side for parity; note Copilot PreToolUse",
+    "matches tool invocations, so the scanner's own re-check is the real guard."
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "python .github/skills/git-hygiene/scripts/git_hygiene_scan.py --hook",
+        "matcher": "\\bgit\\b.*\\bcommit\\b",
+        "timeout": 15
+      }
+    ]
+  }
+}

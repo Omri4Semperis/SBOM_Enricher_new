@@ -1,0 +1,15 @@
+{
+  "_comment": [
+    "Copilot mirror of the Cursor `preCompact` handoff backstop (.cursor/hooks.json).",
+    "Backs up the transcript before context compaction. Fails open."
+  ],
+  "hooks": {
+    "PreCompact": [
+      {
+        "type": "command",
+        "command": "python .github/skills/handoff/scripts/precompact_backup.py",
+        "timeout": 15
+      }
+    ]
+  }
+}
