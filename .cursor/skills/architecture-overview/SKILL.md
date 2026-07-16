@@ -5,7 +5,8 @@ description: >-
   module-to-responsibility layout under src/, the per-run output artifacts, and
   audit mode. Use when orienting in the repo; tracing enrichment data flow;
   deciding which module owns a change; or working on process_component,
-  providers, downloads, cache, audit/scoring, Story, summaries, or run outputs.
+  providers, downloads, cache, audit/scoring, Story, Event Log, summaries,
+  or run outputs.
   This is a map, not a spec — read the cited source file before editing.
 ---
 
@@ -15,7 +16,7 @@ An orientation accelerator, not a spec. Use it to find the right module fast,
 then read that file. For domain vocabulary see `docs/CONTEXT.md`; for durable
 decisions see `docs/adr/` (cost/copyright: archive DECISIONS + plan under
 `docs/plans/archive/cost-and-copyright-observability/`; grading/download ADRs
-0006–0008; recent ops notes in `docs/DECISIONS.md`).
+0006–0008; Event Log ADR 0009; recent ops notes in `docs/DECISIONS.md`).
 
 ## What it does
 
@@ -64,13 +65,22 @@ Every enrichment step appends a line to the component's **Story**
 of the Story by `summary.py` / `results_csv.py`. Story timings cover
 license/download/copyright only; equality judge time is not captured there.
 
+Separately, every run writes a global **Event Log** (`events.jsonl`, ADR 0009):
+machine-readable start/end spans with correlation IDs (run/component/slot/op),
+including LLM retry attempts and equality stages. Story stays the human
+narrative; the Event Log is for concurrency, time-to-first-row, and attempt-
+level latency. Summarize with `src/event_report.py` — never dump the raw file
+into a model context.
+
 ## Concurrency & entry
 
 - `src/main.py` — CLI entry: load config → `preflight` → build run dir →
-  stream `results_*` + `results_*_extended.csv` during workers → then
-  `score.csv` (audit only), `summary.json`, `runtime_report.html`.
+  init Event Log → stream `results_*` + `results_*_extended.csv` during
+  workers → then `score.csv` (audit only), `summary.json`,
+  `runtime_report.html`.
 - `run_workers` in `pipeline.py` — bounded `asyncio.Semaphore(workers)` pool;
-  one shared GPT-4.1 client; results streamed to CSV writers via `as_completed`.
+  one shared GPT-4.1 client; results streamed to CSV writers via `as_completed`;
+  each acquired slot gets a `slot_id` for Event Log concurrency viz.
 - `preflight.py` — fail-fast connectivity probe of Claude + Azure before any
   work starts (mocked in tests).
 
@@ -96,6 +106,8 @@ license/download/copyright only; equality judge time is not captured there.
 | `summary.py` | Build/write `summary.json`; parse Story timings/reasons |
 | `runtime_report.py` | Post-run HTML report (timings + audit accuracy); also CLI |
 | `progress.py` | Live stderr progress bar + ETA |
+| `eventlog.py` | Always-on JSONL Event Log (thread-safe; contextvar IDs) |
+| `event_report.py` | Bounded CLI summary of `events.jsonl` |
 
 ## Audit mode
 
@@ -117,6 +129,7 @@ Under `output_base_path/` (default `runs/`), a dir named
 input/            copy of input CSV + config.json snapshot
 licenses/         downloaded license files, flat {slug}.ext
 per_component/{slug}/  meta.json + story.txt (+ license copy)
+events.jsonl      global Event Log (start/end spans + attempts; ADR 0009)
 results_{modelShort}_{n}.csv           main output (triplet columns)
 results_{modelShort}_{n}_extended.csv  + raw/cost/cache/timing detail
 score.csv         audit tally (audit mode only)
@@ -134,5 +147,7 @@ runtime_report.html  self-contained time + accuracy report
 - **Cache is all-or-nothing** on `component_name` (ADR 0001): only full
   successes are written. A cache hit skips enrichment LLM cost; audit equality
   may still incur Run Cost (see `docs/CONTEXT.md` Run Cost).
-- **Story is the source of truth** for post-hoc timings/reasons; the CSV/summary
-  writers re-parse it rather than threading data through `ComponentResult`.
+- **Story is the source of truth** for post-hoc *human* timings/reasons in
+  CSV/summary (re-parsed from `story.txt`). The **Event Log** is the source of
+  truth for cross-component order, concurrency, time-to-first-row, and
+  attempt-level provider latency (ADR 0009).

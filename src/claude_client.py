@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 import json
 import subprocess
+import time
 from pathlib import Path
 
+from eventlog import emit, next_op_id
 from pricing import CallMeta
 from prompts import copyright_web_prompt, license_prompt
 from retry import with_retries
@@ -76,7 +78,14 @@ def _parse_cli_stdout(stdout: bytes, required_keys: tuple[str, ...]) -> dict:
 
 
 async def _claude_once(
-    prompt: str, model: str, schema: dict, meta: CallMeta, required_keys: tuple[str, ...]
+    prompt: str,
+    model: str,
+    schema: dict,
+    meta: CallMeta,
+    required_keys: tuple[str, ...],
+    *,
+    label: str = "claude",
+    attempt: int = 0,
 ) -> dict:
     cmd = [
         "claude",
@@ -91,34 +100,60 @@ async def _claude_once(
         "--json-schema",
         json.dumps(schema),
     ]
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=str(Path.home()),
-    )
+    op_id = next_op_id()
+    start = time.perf_counter()
+    emit("claude", "start", op_id=op_id, label=label, attempt=attempt, model=model)
+    status = "ok"
     try:
-        stdout, stderr = await asyncio.wait_for(
-            proc.communicate(), timeout=CLAUDE_TIMEOUT_S
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=str(Path.home()),
         )
-    except asyncio.TimeoutError as exc:
-        proc.kill()
-        await proc.wait()
-        raise HardFailure(f"claude timed out after {CLAUDE_TIMEOUT_S:.0f}s") from exc
-    if proc.returncode != 0:
-        err = stderr.decode(errors="replace")
-        low = err.lower()
-        if any(code in low for code in ("401", "403", "404")):
-            raise HardFailure(f"claude hard failure ({proc.returncode}): {err[:200]}")
-        raise TransientFailure(f"claude exit {proc.returncode}: {err[:200]}")
-    raw = stdout.decode(errors="replace")
-    try:
-        wrapper = json.loads(raw)
-        cost = wrapper.get("total_cost_usd") if isinstance(wrapper, dict) else None
-    except json.JSONDecodeError:
-        cost = None
-    meta.add_call(cost_usd=cost if isinstance(cost, (int, float)) else None, raw=raw)
-    return _parse_cli_stdout(stdout, required_keys)
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=CLAUDE_TIMEOUT_S
+            )
+        except asyncio.TimeoutError as exc:
+            proc.kill()
+            await proc.wait()
+            status = "timeout"
+            raise HardFailure(
+                f"claude timed out after {CLAUDE_TIMEOUT_S:.0f}s"
+            ) from exc
+        if proc.returncode != 0:
+            err = stderr.decode(errors="replace")
+            low = err.lower()
+            if any(code in low for code in ("401", "403", "404")):
+                status = "hard"
+                raise HardFailure(
+                    f"claude hard failure ({proc.returncode}): {err[:200]}"
+                )
+            status = "error"
+            raise TransientFailure(f"claude exit {proc.returncode}: {err[:200]}")
+        raw = stdout.decode(errors="replace")
+        try:
+            wrapper = json.loads(raw)
+            cost = wrapper.get("total_cost_usd") if isinstance(wrapper, dict) else None
+        except json.JSONDecodeError:
+            cost = None
+        meta.add_call(cost_usd=cost if isinstance(cost, (int, float)) else None, raw=raw)
+        try:
+            return _parse_cli_stdout(stdout, required_keys)
+        except ParseFailure:
+            status = "parse"
+            raise
+    finally:
+        emit(
+            "claude",
+            "end",
+            op_id=op_id,
+            label=label,
+            attempt=attempt,
+            dur_s=round(time.perf_counter() - start, 3),
+            status=status,
+        )
 
 
 async def infer_license(
@@ -134,7 +169,10 @@ async def infer_license(
 
     async def once() -> dict:
         attempts["n"] += 1
-        return await _claude_once(prompt, model, schema, meta, LICENSE_KEYS)
+        return await _claude_once(
+            prompt, model, schema, meta, LICENSE_KEYS,
+            label="license", attempt=attempts["n"],
+        )
 
     try:
         result = await with_retries(once, classify=_classify)
@@ -162,7 +200,10 @@ async def infer_copyright_web(
 
     async def once() -> dict:
         attempts["n"] += 1
-        return await _claude_once(prompt, model, schema, meta, COPYRIGHT_KEYS)
+        return await _claude_once(
+            prompt, model, schema, meta, COPYRIGHT_KEYS,
+            label="copyright_web", attempt=attempts["n"],
+        )
 
     try:
         result = await with_retries(once, classify=_classify)

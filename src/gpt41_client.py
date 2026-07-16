@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import time
 
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import APIConnectionError, APITimeoutError, AsyncAzureOpenAI, RateLimitError
 
+from eventlog import emit, next_op_id
 from pricing import CallMeta, compute_cost
 from retry import with_retries
 
@@ -75,8 +77,25 @@ class Gpt41Client:
     ) -> tuple[dict, CallMeta]:
         """Chat with retries; return (parsed JSON object, CallMeta)."""
         meta = CallMeta()
+        attempts = {"n": 0}
 
         async def once() -> dict:
+            attempts["n"] += 1
+            op_id = next_op_id()
+            start = time.perf_counter()
+            emit("gpt", "start", op_id=op_id, attempt=attempts["n"])
+            status = "ok"
+
+            def _end() -> None:
+                emit(
+                    "gpt",
+                    "end",
+                    op_id=op_id,
+                    attempt=attempts["n"],
+                    dur_s=round(time.perf_counter() - start, 3),
+                    status=status,
+                )
+
             try:
                 response = await self._client.chat.completions.create(
                     model=GPT41_DEPLOYMENT,
@@ -87,9 +106,17 @@ class Gpt41Client:
                     temperature=0.0,
                     max_completion_tokens=1000,
                 )
-            except (APIConnectionError, APITimeoutError, RateLimitError):
+            except APITimeoutError:
+                status = "timeout"
+                _end()
+                raise
+            except (APIConnectionError, RateLimitError):
+                status = "transient"
+                _end()
                 raise
             except Exception as e:  # noqa: BLE001 — map unknown SDK errors
+                status = "hard"
+                _end()
                 raise HardFailure(str(e)) from e
 
             try:
@@ -114,8 +141,17 @@ class Gpt41Client:
                 )
             meta.add_call(cost_usd=cost_usd, raw=content)
             if malformed is not None:
+                status = "parse"
+                _end()
                 raise malformed
-            return _parse_json_content(content)
+            try:
+                parsed = _parse_json_content(content)
+            except ParseFailure:
+                status = "parse"
+                _end()
+                raise
+            _end()
+            return parsed
 
         try:
             data = await with_retries(once, classify=_classify)

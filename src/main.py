@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from config import REPO_ROOT, Config, load_config
+from eventlog import close_event_log, emit, init_event_log
 from input_csv import read_components
 from pipeline import run_workers
 from preflight import preflight
@@ -33,9 +34,14 @@ class _FanoutWriter:
         self._ext = ext_w
         self._progress = progress
 
+        self._first_row_seen = False
+
     def write_row(self, result) -> None:
         self._main.write_row(result)
         self._ext.write_row(result)
+        if not self._first_row_seen:
+            self._first_row_seen = True
+            emit("first_row", slug=result.component.slug)
         self._progress.tick()
 
 
@@ -47,9 +53,23 @@ def run(config: Config) -> Path:
     components = read_components(config.input_file_path)
     print(f"components: {len(components)}", file=sys.stderr)
     print("\nRunning startup checks (Claude + Azure)…\n", file=sys.stderr, flush=True)
+    t_pre = time.perf_counter()
     preflight(config)
+    preflight_s = time.perf_counter() - t_pre
     out = create_run_dir(config, components)
     print(f"run dir:    {out}", file=sys.stderr)
+    init_event_log(out / "events.jsonl", out.name)
+    emit(
+        "run",
+        "start",
+        components=len(components),
+        model=config.model,
+        workers=config.workers,
+        input=str(config.input_file_path),
+    )
+    # Preflight runs before the run dir exists, so it is logged retroactively as
+    # a single completed event carrying its measured duration.
+    emit("preflight", "end", dur_s=round(preflight_s, 3), status="ok")
     extras = list(components[0].extras.keys()) if components else []
     gt_columns = detect_gt_columns(extras)
     csv_path = out / results_csv_name(config.model, len(components))
@@ -63,8 +83,17 @@ def run(config: Config) -> Path:
         ExtendedWriter(ext_path, extras, out) as extended,
     ):
         fanout = _FanoutWriter(writer, extended, progress)
+        emit("workers", "start", n=len(components))
+        t_workers = time.perf_counter()
         results = asyncio.run(
             run_workers(config, components, out, fanout, gt_columns=gt_columns)
+        )
+        emit(
+            "workers",
+            "end",
+            dur_s=round(time.perf_counter() - t_workers, 3),
+            n=len(results),
+            status="ok",
         )
     wall = time.perf_counter() - t0
     ended = datetime.now(timezone.utc)
@@ -83,6 +112,8 @@ def run(config: Config) -> Path:
     )
     report_path = write_runtime_report(out)
     print(f"report: {report_path}", file=sys.stderr)
+    emit("run", "end", dur_s=round(wall, 3), components=len(results), status="ok")
+    close_event_log()
     return out
 
 

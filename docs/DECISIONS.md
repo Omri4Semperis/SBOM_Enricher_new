@@ -2,6 +2,14 @@
 
 Status: IMPLEMENTED (2026-07-16). Async Azure creds + Claude 1200s kill/fail-closed.
 
+## Follow-up (2026-07-16): always-on Event Log
+
+After the freeze-prevention work, diagnosing time-to-first-row and
+attempt-level GPT/Claude latency still required fragile mtime reconstruction.
+Decision: always write `runs/<run>/events.jsonl` (ADR 0009); summarize with
+`src/event_report.py`. Story unchanged. See architecture-overview /
+run-and-test skills.
+
 ## Subject
 
 Harden the enrichment pipeline against the whole-event-loop freeze observed in

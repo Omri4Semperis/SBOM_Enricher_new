@@ -2,10 +2,11 @@
 name: run-and-test
 description: >-
   Authoritative Windows/PowerShell commands for testing and running the SBOM
-  Enricher: repo venv, pytest, config-driven enrichment, runtime reports, and
-  required Claude CLI/Azure credentials. Use whenever asked to run pytest or
-  tests, verify/validate changes, reproduce a failure or run, execute an
-  enrichment, set up .venv, generate a report, or troubleshoot preflight/auth.
+  Enricher: repo venv, pytest, config-driven enrichment, runtime reports,
+  event-log summaries, and required Claude CLI/Azure credentials. Use whenever
+  asked to run pytest or tests, verify/validate changes, reproduce a failure
+  or run, execute an enrichment, set up .venv, generate a report, summarize
+  events.jsonl, or troubleshoot preflight/auth.
 ---
 
 # Running & Testing the SBOM Enricher
@@ -88,6 +89,22 @@ Regenerate or open a report for an existing run with:
 .\.venv\Scripts\python.exe src\runtime_report.py <run_dir>
 .\.venv\Scripts\python.exe src\runtime_report.py <run_dir> --out report.html --open
 ```
+
+## Event log summary
+
+Every successful enrichment also writes `events.jsonl` (always-on; ADR 0009).
+Summarize with the bounded CLI — do **not** open the raw file into a model
+context (it grows to tens of thousands of lines):
+
+```powershell
+.\.venv\Scripts\python.exe src\event_report.py <run_dir>
+.\.venv\Scripts\python.exe src\event_report.py <run_dir> --component <slug>
+.\.venv\Scripts\python.exe src\event_report.py <run_dir> --tail-over 300
+.\.venv\Scripts\python.exe src\event_report.py <run_dir> --op claude --top 20
+```
+
+Default output: run wall, preflight, **time-to-first-row**, per-op latency,
+provider/retry/cache tallies, concurrency peak+avg, slowest ops.
 
 ### Config fields (`configs/default.json`)
 

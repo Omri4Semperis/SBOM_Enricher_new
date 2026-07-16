@@ -32,6 +32,13 @@ fields" (or just "fields" where the context is clear). In code the locked
 order of ground-truth field names is `GT_FIELDS`.
 _Avoid_: element, item — for this meaning.
 
+**Event Log**:
+The machine-readable, run-wide timeline of enrichment work — start/end spans
+for stages and LLM attempts, with correlation IDs so concurrent components
+can be reconstructed. One file per run; for tools and post-hoc analysis, not
+for humans reading a single component.
+_Avoid_: Story, debug.log, trace dump
+
 **Inference Cost**:
 The subset of Run Cost incurred by LLM calls used to produce enrichment,
 including billable attempts. It excludes equality testing, connectivity
@@ -82,5 +89,6 @@ _Avoid_: saved cost, cache savings
 **Story**:
 A plain-text, human-readable narrative of everything done to enrich one
 component — steps tried, LLM responses, fallbacks, retries, errors, timings.
-One per component; for a human, not for machines.
-_Avoid_: log, trace, debug output
+One per component; for a human, not for machines. Distinct from the Event Log
+(run-wide, machine-readable).
+_Avoid_: Event Log, debug output, trace dump

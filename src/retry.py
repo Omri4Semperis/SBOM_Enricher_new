@@ -7,6 +7,8 @@ import random
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
+from eventlog import emit
+
 T = TypeVar("T")
 
 Kind = str  # "transient" | "parse" | "hard"
@@ -45,15 +47,16 @@ async def with_retries(
                 if transient_used >= transient_attempts:
                     raise
                 if transient_used == 1:
-                    await asyncio.sleep(TRANSIENT_SLEEP_1)
+                    sleep_s = TRANSIENT_SLEEP_1
                 else:
-                    await asyncio.sleep(
-                        random.uniform(TRANSIENT_SLEEP_2_LO, TRANSIENT_SLEEP_2_HI)
-                    )
+                    sleep_s = random.uniform(TRANSIENT_SLEEP_2_LO, TRANSIENT_SLEEP_2_HI)
+                emit("retry", kind="transient", n=transient_used, sleep_s=round(sleep_s, 3))
+                await asyncio.sleep(sleep_s)
             elif kind == "parse":
                 parse_used += 1
                 if parse_used >= parse_attempts:
                     raise
+                emit("retry", kind="parse", n=parse_used, sleep_s=PARSE_SLEEP)
                 await asyncio.sleep(PARSE_SLEEP)
             else:
                 raise ValueError(f"unknown failure kind: {kind!r}") from exc

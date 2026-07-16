@@ -13,6 +13,7 @@ from config import Config
 from copyright import resolve_copyright
 from download import fetch_license_file
 from equality import compare_copyright, compare_name, compare_url_content
+from eventlog import component_context, emit, log_op, slot_context
 from gpt41_client import Gpt41Client
 from input_csv import Component
 from pricing import CallMeta
@@ -70,6 +71,7 @@ async def process_component(
         append_story(run_dir, comp.slug, "no purl")
 
     cached = read_cache(cache_read, comp.component_name)
+    emit("cache", "event", kind="read", hit=cached is not None)
     if cached is not None:
         flat = restore_license_file(cached, run_dir, comp.slug)
         result.inferred_license_name = cached.inferred_license_name
@@ -81,7 +83,8 @@ async def process_component(
         return result
 
     t0 = time.perf_counter()
-    inferred = await infer_license(comp.purl, comp.lib_name, comp.version, model)
+    async with log_op("license"):
+        inferred = await infer_license(comp.purl, comp.lib_name, comp.version, model)
     # Fakes may still return a plain dict; real client returns (dict, CallMeta).
     if isinstance(inferred, tuple):
         data, result.license_meta = inferred
@@ -100,9 +103,10 @@ async def process_component(
     )
 
     t1 = time.perf_counter()
-    dl = await fetch_license_file(
-        data["license_code_url"], comp.purl, run_dir, comp.slug
-    )
+    async with log_op("download"):
+        dl = await fetch_license_file(
+            data["license_code_url"], comp.purl, run_dir, comp.slug
+        )
     dl_elapsed = time.perf_counter() - t1
     result.download_attempts = list(dl.attempts)
     for line in dl.attempts:
@@ -127,9 +131,10 @@ async def process_component(
     if result.license_file_path is not None:
         text = result.license_file_path.read_text(encoding="utf-8", errors="replace")
     t2 = time.perf_counter()
-    cr = await resolve_copyright(
-        client, text, comp.purl, comp.lib_name, comp.version, model
-    )
+    async with log_op("copyright"):
+        cr = await resolve_copyright(
+            client, text, comp.purl, comp.lib_name, comp.version, model
+        )
     # Fakes may still return a plain dict; real resolver returns (dict, CallMeta).
     if isinstance(cr, tuple):
         data, result.copyright_meta = cr
@@ -144,6 +149,7 @@ async def process_component(
     )
 
     write_cache(cache_write, comp.component_name, result)
+    emit("cache", "event", kind="write")
     return result
 
 
@@ -160,24 +166,26 @@ async def apply_equality(
     slug = result.component.slug
 
     if "license_name" in gt_columns:
-        eq = await compare_name(
-            result.inferred_license_name,
-            extras.get("license_name", ""),
-            client=client,
-        )
+        async with log_op("equality_name"):
+            eq = await compare_name(
+                result.inferred_license_name,
+                extras.get("license_name", ""),
+                client=client,
+            )
         result.is_eq_license_name = eq.verdict
         result.eq_license_name_reason = eq.reason
         result.eq_license_name_meta = eq.meta
         append_story(run_dir, slug, f"is_eq_license_name={eq.verdict} ({eq.reason})")
 
     if "license_code_url" in gt_columns:
-        eq = await compare_url_content(
-            result.inferred_license_code_url,
-            extras.get("license_code_url", ""),
-            run_dir,
-            slug,
-            client=client,
-        )
+        async with log_op("equality_url"):
+            eq = await compare_url_content(
+                result.inferred_license_code_url,
+                extras.get("license_code_url", ""),
+                run_dir,
+                slug,
+                client=client,
+            )
         result.is_eq_license_code_url = eq.verdict
         result.eq_license_code_url_reason = eq.reason
         result.eq_license_code_url_meta = eq.meta
@@ -186,11 +194,12 @@ async def apply_equality(
         )
 
     if "copyright" in gt_columns:
-        eq = await compare_copyright(
-            result.inferred_copyright,
-            extras.get("copyright", ""),
-            client=client,
-        )
+        async with log_op("equality_copyright"):
+            eq = await compare_copyright(
+                result.inferred_copyright,
+                extras.get("copyright", ""),
+                client=client,
+            )
         result.is_eq_copyright = eq.verdict
         result.eq_copyright_reason = eq.reason
         result.eq_copyright_meta = eq.meta
@@ -210,23 +219,35 @@ async def run_workers(
     client = Gpt41Client()
     sem = asyncio.Semaphore(config.workers)
     results: list[ComponentResult] = []
+    # Free lanes emulate worker identity: the semaphore bounds concurrency but
+    # gives no slot number, so we hand out an id on acquire for concurrency viz.
+    free_slots = list(range(config.workers))
 
-    async def one(comp: Component) -> ComponentResult:
-        async with sem:
-            result = await process_component(
-                comp,
-                run_dir,
-                config.model,
-                client,
-                cache_read=config.cache_read,
-                cache_write=config.cache_write,
-            )
-            await apply_equality(result, run_dir, gt_columns, client)
+    async def one(comp: Component, comp_idx: int) -> ComponentResult:
+        with component_context(comp_idx, comp.slug):
+            emit("component", "queued")
+            async with sem:
+                slot = free_slots.pop()
+                with slot_context(slot):
+                    async with log_op("component"):
+                        result = await process_component(
+                            comp,
+                            run_dir,
+                            config.model,
+                            client,
+                            cache_read=config.cache_read,
+                            cache_write=config.cache_write,
+                        )
+                        await apply_equality(result, run_dir, gt_columns, client)
+                free_slots.append(slot)
             return result
 
-    tasks = [asyncio.create_task(one(c)) for c in components]
+    tasks = [
+        asyncio.create_task(one(c, i)) for i, c in enumerate(components)
+    ]
     for finished in asyncio.as_completed(tasks):
         result = await finished
         writer.write_row(result)
+        emit("row_written", slug=result.component.slug, from_cache=result.from_cache)
         results.append(result)
     return results
