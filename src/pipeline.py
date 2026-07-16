@@ -45,6 +45,7 @@ class ComponentResult:
     eq_license_name_meta: CallMeta = field(default_factory=CallMeta)
     eq_license_code_url_meta: CallMeta = field(default_factory=CallMeta)
     eq_copyright_meta: CallMeta = field(default_factory=CallMeta)
+    error: str = ""
 
 
 def story_path(run_dir: Path, slug: str) -> Path:
@@ -228,18 +229,32 @@ async def run_workers(
             emit("component", "queued")
             async with sem:
                 slot = free_slots.pop()
-                with slot_context(slot):
-                    async with log_op("component"):
-                        result = await process_component(
-                            comp,
-                            run_dir,
-                            config.model,
-                            client,
-                            cache_read=config.cache_read,
-                            cache_write=config.cache_write,
-                        )
-                        await apply_equality(result, run_dir, gt_columns, client)
-                free_slots.append(slot)
+                result = ComponentResult(component=comp)
+                try:
+                    with slot_context(slot):
+                        try:
+                            async with log_op("component"):
+                                result = await process_component(
+                                    comp,
+                                    run_dir,
+                                    config.model,
+                                    client,
+                                    cache_read=config.cache_read,
+                                    cache_write=config.cache_write,
+                                )
+                                await apply_equality(
+                                    result, run_dir, gt_columns, client
+                                )
+                        except Exception as exc:
+                            detail = str(exc).splitlines()[0].strip()
+                            result.error = (
+                                f"{type(exc).__name__}: {detail}"
+                                if detail
+                                else type(exc).__name__
+                            )
+                            append_story(run_dir, comp.slug, f"error: {result.error}")
+                finally:
+                    free_slots.append(slot)
             return result
 
     tasks = [
@@ -248,6 +263,11 @@ async def run_workers(
     for finished in asyncio.as_completed(tasks):
         result = await finished
         writer.write_row(result)
-        emit("row_written", slug=result.component.slug, from_cache=result.from_cache)
+        emit(
+            "row_written",
+            slug=result.component.slug,
+            from_cache=result.from_cache,
+            failed=bool(result.error),
+        )
         results.append(result)
     return results

@@ -153,6 +153,7 @@ def build_summary(
             "workers": config.workers,
             "components": n,
             "cache_hits": cache_hits,
+            "failed": sum(bool(r.error) for r in results),
             "started_at_utc": started_at.astimezone(timezone.utc).isoformat(),
             "ended_at_utc": ended_at.astimezone(timezone.utc).isoformat(),
         },

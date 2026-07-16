@@ -146,6 +146,7 @@ def test_fixture_run_extended_csv_and_summary(tmp_path, monkeypatch):
         "workers",
         "components",
         "cache_hits",
+        "failed",
         "started_at_utc",
         "ended_at_utc",
     ]
@@ -153,6 +154,7 @@ def test_fixture_run_extended_csv_and_summary(tmp_path, monkeypatch):
     assert info["model"] == "claude-opus-4-8"
     assert info["workers"] == 2
     assert info["components"] == 3
+    assert info["failed"] == 0
     assert "started_at_utc" in info and "ended_at_utc" in info
     costs = payload["costs"]
     assert "license_inference" in costs

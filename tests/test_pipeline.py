@@ -430,3 +430,60 @@ def test_non_audit_run_shares_one_gpt_client(tmp_path, monkeypatch):
 
     assert factory_calls == 1
     assert received_clients == [client, client, client]
+
+
+def test_worker_failure_writes_failed_result_and_releases_slot(tmp_path, monkeypatch):
+    from input_csv import Component
+
+    class Writer:
+        def __init__(self):
+            self.rows = []
+
+        def write_row(self, result):
+            self.rows.append(result)
+
+    async def fake_process(comp, *_args, **_kwargs):
+        if comp.slug == "bad":
+            raise RuntimeError("provider unavailable")
+        return pipeline.ComponentResult(component=comp, inferred_license_name="MIT")
+
+    components = [
+        Component(
+            component_name=slug,
+            purl=f"pkg:npm/{slug}",
+            lib_name=slug,
+            version="1.0",
+            slug=slug,
+            extras={},
+        )
+        for slug in ("bad", "good-1", "good-2")
+    ]
+    run = tmp_path / "run"
+    for component in components:
+        (run / "per_component" / component.slug).mkdir(parents=True)
+    monkeypatch.setattr(pipeline, "Gpt41Client", object)
+    monkeypatch.setattr(pipeline, "process_component", fake_process)
+    cfg = config.Config(
+        input_file_path=FIXTURE,
+        output_base_path=tmp_path / "runs",
+        run_name=None,
+        model="claude-opus-4-8",
+        workers=1,
+        cache_read=None,
+        cache_write=None,
+    )
+    writer = Writer()
+
+    results = asyncio.run(pipeline.run_workers(cfg, components, run, writer))
+
+    assert len(results) == len(components)
+    assert len(writer.rows) == len(components)
+    failed = next(result for result in results if result.component.slug == "bad")
+    assert failed.error == "RuntimeError: provider unavailable"
+    assert [result.component.slug for result in results if not result.error] == [
+        "good-1",
+        "good-2",
+    ]
+    assert "error: RuntimeError: provider unavailable" in (
+        run / "per_component" / "bad" / pipeline.STORY_FILENAME
+    ).read_text(encoding="utf-8")

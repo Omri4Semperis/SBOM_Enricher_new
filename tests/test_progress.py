@@ -23,6 +23,10 @@ def test_render_line_includes_bar_and_eta():
     assert "ETA" in line
 
 
+def test_render_line_includes_failed_count():
+    assert "2/4 (1 failed)" in render_line(2, 4, 4.0, failed=1)
+
+
 def test_render_line_pads_eta_against_stale_chars():
     # Trailing pad after ETA keeps line length stable as ETA digits shrink.
     short_eta = render_line(9, 10, 180.0)  # ~ETA 20s
@@ -41,7 +45,8 @@ def test_progress_tick(monkeypatch):
     p = Progress(2)
     p.start()
     p.tick()
-    p.tick()
+    p.tick(failed=True)
     assert p.done == 2
+    assert p.failed == 1
     assert any("1/2" in str(x) for x in lines)
-    assert any("2/2" in str(x) for x in lines)
+    assert any("2/2 (1 failed)" in str(x) for x in lines)

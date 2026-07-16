@@ -45,6 +45,7 @@ EXTENDED_EXTRA_COLUMNS = (
     "grades",
     "total_elapsed_s",
     "total_cost_usd",
+    "error",
 )
 
 
@@ -212,6 +213,7 @@ class ExtendedWriter:
                 else "",
                 "total_elapsed_s": f"{total_s:.3f}" if total_s is not None else "",
                 "total_cost_usd": UNKNOWN_COST if not result.from_cache else "",
+                "error": result.error,
             }
         )
         self._writer.writerow(row)

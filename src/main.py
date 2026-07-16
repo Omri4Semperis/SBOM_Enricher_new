@@ -42,7 +42,7 @@ class _FanoutWriter:
         if not self._first_row_seen:
             self._first_row_seen = True
             emit("first_row", slug=result.component.slug)
-        self._progress.tick()
+        self._progress.tick(failed=bool(result.error))
 
 
 def run(config: Config) -> Path:
@@ -97,6 +97,13 @@ def run(config: Config) -> Path:
         )
     wall = time.perf_counter() - t0
     ended = datetime.now(timezone.utc)
+    failed = sum(bool(result.error) for result in results)
+    if failed:
+        print(
+            f"{failed}/{len(components)} components failed "
+            "(see extended CSV 'error' column)",
+            file=sys.stderr,
+        )
     if gt_columns:
         write_score_csv(out / "score.csv", results, gt_columns)
     write_summary(
