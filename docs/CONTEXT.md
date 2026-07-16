@@ -86,6 +86,14 @@ enrichment plus equality testing, but not connectivity preflight. Reusing a
 cached enrichment contributes zero Run Cost.
 _Avoid_: saved cost, cache savings
 
+**Runtime Report**:
+The human-readable HTML summary of one enrichment run — run-level timing and
+cost, optional audit accuracy, and a per-component breakdown that can show
+each component’s inferred Enrichment Fields beside Ground Truth and Scoring
+Outcome. Distinct from Story (per-component narrative file) and the Event Log
+(machine timeline).
+_Avoid_: dashboard, results page, HTML dump
+
 **Story**:
 A plain-text, human-readable narrative of everything done to enrich one
 component — steps tried, LLM responses, fallbacks, retries, errors, timings.
