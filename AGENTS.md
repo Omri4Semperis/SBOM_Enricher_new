@@ -21,6 +21,21 @@ At session start, check for `docs/HANDOFF.md` (repo root):
   title; the stamp, not deletion, is what retires it.
 - Exists, already `Consumed:` → spent. Offer to delete it, then proceed.
 
+## AI-docs parity (Cursor ↔ Copilot)
+
+The agent docs are mirrored across two orientations: Cursor (`AGENTS.md`,
+`.cursor/skills/`, `.cursor/hooks.json`) and Copilot
+(`.github/copilot-instructions.md`, `.github/skills/`, `.github/hooks/`). They
+must stay identical.
+
+A start-of-conversation hook runs `python scripts/ai_docs_parity.py`
+(`beforeSubmitPrompt` on Cursor, `SessionStart` on Copilot). If it reports
+unresolved divergence you MUST, before any other work: tell the user what
+differs, which side is more up to date, and a consolidation recommendation,
+then ask how to consolidate. If the user approves a divergence, record its
+`signature` in `.ai-docs-parity-allow.json`. If the hook did not run (python
+unavailable, etc.), run the checker yourself before proceeding.
+
 ## Your style
 
 Be Extremely concise. Sacrifice grammar for concision.

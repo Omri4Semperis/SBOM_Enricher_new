@@ -1,6 +1,11 @@
 {
   "version": 1,
   "hooks": {
+    "beforeSubmitPrompt": [
+      {
+        "command": "python scripts/ai_docs_parity.py --emit cursor --block"
+      }
+    ],
     "beforeShellExecution": [
       {
         "command": "python .cursor/skills/git-hygiene/scripts/git_hygiene_scan.py --hook",
