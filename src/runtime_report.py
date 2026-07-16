@@ -872,12 +872,11 @@ def _fmt_equality(reason: str) -> tuple[str, str]:
 
 
 def _clip(inner_html: str, plain: str) -> str:
-    """One-line clamp when text is long; click toggles full text."""
-    if len(plain) <= 80 and "\n" not in plain:
+    """Wrap text so JS can clamp it only when it actually overflows."""
+    if not plain:
         return inner_html
     return (
-        "<div class='clip' role='button' title='Click to expand/collapse' "
-        "onclick=\"event.stopPropagation();this.classList.toggle('open')\">"
+        "<div class='clip' onclick=\"event.stopPropagation();tglClip(this)\">"
         f"{inner_html}</div>"
     )
 
@@ -1052,12 +1051,13 @@ table.comps td.total{white-space:nowrap}
 .gi-k{color:var(--muted);text-align:right;text-transform:uppercase;font-size:11px;
   letter-spacing:.03em;padding-top:2px}
 .gi-v{white-space:pre-wrap;word-break:break-word;min-width:0}
-.clip{max-height:1.5em;overflow:hidden;cursor:pointer;white-space:nowrap;
+.clip{min-width:0}
+.clip.is-clipped{max-height:1.5em;overflow:hidden;cursor:pointer;white-space:nowrap;
   color:var(--muted);
   -webkit-mask-image:linear-gradient(90deg,#000 50%,transparent);
   mask-image:linear-gradient(90deg,#000 50%,transparent)}
-.clip:hover{color:#475569}
-.clip.open{max-height:none;overflow:visible;white-space:pre-wrap;color:inherit;
+.clip.is-clipped:hover{color:#475569}
+.clip.open{max-height:none;overflow:visible;white-space:pre-wrap;color:inherit;cursor:pointer;
   -webkit-mask-image:none;mask-image:none}
 .clip.open:hover{color:inherit}
 .eq-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:1px 7px;
@@ -1079,9 +1079,44 @@ code{background:#f1f5f9;padding:1px 5px;border-radius:5px;font-size:12.5px}
 """
 
 JS = """
+function armClips(root){
+  (root || document).querySelectorAll('.clip').forEach(function(el){
+    if(el.classList.contains('open')) return;
+    // Hidden (inactive tab / closed row): don't measure — clientWidth is 0.
+    if(!el.offsetParent){
+      el.classList.remove('is-clipped');
+      el.removeAttribute('role');
+      el.removeAttribute('title');
+      return;
+    }
+    el.classList.add('is-clipped');
+    el.removeAttribute('role');
+    el.removeAttribute('title');
+    // With clamp applied: overflow means expand would reveal more.
+    var overflows = el.scrollWidth > el.clientWidth + 1;
+    if(overflows){
+      el.setAttribute('role','button');
+      el.title = 'Click to expand/collapse';
+    } else {
+      el.classList.remove('is-clipped');
+    }
+  });
+}
+function tglClip(el){
+  if(!el.classList.contains('is-clipped') && !el.classList.contains('open')) return;
+  el.classList.toggle('open');
+  if(el.classList.contains('open')){
+    el.classList.remove('is-clipped');
+  } else {
+    armClips(el.parentElement || document);
+  }
+}
 function tgl(row){
   var d = row.nextElementSibling;
-  if(d && d.classList.contains('drow')) d.classList.toggle('open');
+  if(d && d.classList.contains('drow')){
+    d.classList.toggle('open');
+    if(d.classList.contains('open')) armClips(d);
+  }
 }
 function selTab(btn){
   var tabs = btn.parentElement;            // .tabbar
@@ -1093,10 +1128,12 @@ function selTab(btn){
   wrap.querySelectorAll('.tabpanel').forEach(function(p){
     p.classList.toggle('active', p.getAttribute('data-panel') === key);
   });
+  armClips(wrap);
 }
 function openAll(open){
   document.querySelectorAll('#comps tr.drow').forEach(function(d){
     d.classList.toggle('open', open);
+    if(open) armClips(d);
   });
 }
 (function(){

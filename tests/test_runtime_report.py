@@ -258,6 +258,8 @@ def test_equality_judge_badge_and_clip(tmp_path):
     assert "eq-badge" in page
     assert "LLM judge" in page
     assert "class='clip'" in page
+    assert "is-clipped" in CSS
+    assert "armClips" in page
     assert "table-layout:fixed" in CSS
     assert "scrollbar-gutter:stable" in CSS
 
