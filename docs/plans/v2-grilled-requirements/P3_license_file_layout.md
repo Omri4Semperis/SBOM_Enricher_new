@@ -254,3 +254,31 @@ Assumptions: {numbered, or "none"}
 Open questions: {numbered, or "none"}
 Next action: {the next eligible phase per PLAN.md's table, or "plan complete"}
 ```
+
+## Outcome
+
+Objective: Per-project license-file layout driven by `project_names`; cache restore matches; flat default kept for P4.
+HEAD: cacc978 | Branch: master
+Files changed:
+docs/plans/v2-grilled-requirements/P3_license_file_layout.md
+docs/plans/v2-grilled-requirements/PLAN.md
+src/cache.py
+src/download.py
+src/pipeline.py
+src/run_dir.py
+tests/test_cache.py
+tests/test_download.py
+tests/test_pipeline.py
+tests/test_run_dir.py
+tests/test_summary.py
+Commands run:
+- Entry: pytest -q → 175 passed; git status clean; baseline f1a5c5a
+- T1: pytest tests/test_run_dir.py -q → 7 passed
+- T2: pytest tests/test_download.py -q → 29 passed
+- T3: pytest tests/test_cache.py tests/test_pipeline.py -q → 21 passed
+- T4 / Exit: pytest -q → 183 passed; targeted download+cache+run_dir → 46 passed
+- Fresh review (subagent on f1a5c5a..HEAD): PASS; Lean already. Ship.
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 183 passed
+Assumptions: none
+Open questions: none
+Next action: P4 (one_license_file) or P5 (url_prompt_quality) — both eligible (no deps)

@@ -73,7 +73,7 @@ Invariants that hold across all phases:
 | - | - | - | - | - | - |
 | [P1: input_dedup_conflict](./P1_input_dedup_conflict.md) | Allow duplicate names; reject only true conflicts; aggregate `project_names` | - | done | 9c0eead | 2026-07-19 |
 | [P2: enriched_output_csv](./P2_enriched_output_csv.md) | Emit `library_approvals_enriched.csv` (replace/keep/append) | P1 | done | d666d75 | 2026-07-19 |
-| [P3: license_file_layout](./P3_license_file_layout.md) | Per-project license-file layout; cache restore obeys it | P1 | in progress | f1a5c5a | 2026-07-19 |
+| [P3: license_file_layout](./P3_license_file_layout.md) | Per-project license-file layout; cache restore obeys it | P1 | done | f1a5c5a | 2026-07-19 |
 | [P4: one_license_file](./P4_one_license_file.md) | Audit URL equality reuses inferred file; `licenses/` holds only inferred | - | pending | | |
 | [P5: url_prompt_quality](./P5_url_prompt_quality.md) | Strengthen license-URL prompt (prompt-only) | - | pending | | |
 
@@ -139,6 +139,11 @@ are satisfied by the full suite passing.
   flat (one dir per unique component). `ComponentResult.license_file_path`
   remains a single canonical path (first project copy, or flat).
 - **Notes:**
+  - Done. `build_project_dir_map` in `run_dir`; `_write_license` /
+    `restore_license_file` / `fetch_license_file` take `project_dirs`;
+    `run_workers` builds map once. Flat default preserved for P4.
+    `restore` reuses `_write_license` (no layout drift). Suite: 183 passed
+    (175 + 8). Fresh review: PASS.
   - Deviation: touched `tests/test_pipeline.py` + `tests/test_summary.py`
     (download fakes +`project_dirs=None`) — not in Touch; T3 signature fallout.
 - **Incoming comments:**
