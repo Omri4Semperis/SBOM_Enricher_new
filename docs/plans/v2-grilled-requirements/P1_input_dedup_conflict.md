@@ -211,3 +211,19 @@ Assumptions: {numbered, or "none"}
 Open questions: {numbered, or "none"}
 Next action: {the next eligible phase per PLAN.md's table, or "plan complete"}
 ```
+
+## Outcome
+
+Objective: Add dedup+conflict-check to read_components; aggregate project_names on Component.
+HEAD: 7b4474b | Branch: master
+Files changed: docs/plans/v2-grilled-requirements/PLAN.md, src/input_csv.py, tests/test_input_csv.py
+Commands run:
+- `pytest tests/test_input_csv.py -q` → exit 0, 15 passed (5 baseline + 10 new)
+- `pytest -q` (full suite) → exit 0, 167 passed (157 baseline + 10 new; meets ≥157 gate)
+- Fresh review (subagent, given only diff + phase doc + ponytail lens) → PASS; no doc-compliance violations, no anti-goal violations; two doc-ordered/doc-silent notes recorded (purl casefold is A3-ordered; project_name in extras is existing passthrough behavior; added note to PLAN.md P1 block for P3).
+Test status: full suite 167 passed, 0 failed; test_input_csv.py 15 passed, 0 failed.
+Assumptions:
+1. T1 and T2 were committed in two separate commits to match per-task cadence.
+2. Updating existing test_duplicate_component_name_exits match string from "duplicate component_name" to "conflict for component" is part of T1 (source change broke old match; updated in same commit).
+Open questions: none.
+Next action: P2 (enriched_output_csv) and P3 (license_file_layout) are now both eligible (both depend on P1 done). P4 and P5 were always eligible.

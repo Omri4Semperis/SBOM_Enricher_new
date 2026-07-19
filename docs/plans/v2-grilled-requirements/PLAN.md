@@ -71,7 +71,7 @@ Invariants that hold across all phases:
 
 | Phase | Purpose | Depends on | Status | Baseline | Updated |
 | - | - | - | - | - | - |
-| [P1: input_dedup_conflict](./P1_input_dedup_conflict.md) | Allow duplicate names; reject only true conflicts; aggregate `project_names` | - | in progress | 9c0eead | 2026-07-19 |
+| [P1: input_dedup_conflict](./P1_input_dedup_conflict.md) | Allow duplicate names; reject only true conflicts; aggregate `project_names` | - | done | 9c0eead | 2026-07-19 |
 | [P2: enriched_output_csv](./P2_enriched_output_csv.md) | Emit `library_approvals_enriched.csv` (replace/keep/append) | P1 | pending | | |
 | [P3: license_file_layout](./P3_license_file_layout.md) | Per-project license-file layout; cache restore obeys it | P1 | pending | | |
 | [P4: one_license_file](./P4_one_license_file.md) | Audit URL equality reuses inferred file; `licenses/` holds only inferred | - | pending | | |
@@ -104,8 +104,15 @@ are satisfied by the full suite passing.
   `Component.project_names: tuple[str, ...]` — the ordered, first-seen-unique
   raw `project_name` values across that component's rows; **empty tuple when
   the input has no `project_name` column**. P3 consumes this; do not re-derive
-  project sets elsewhere.
-- **Notes:**
+  project sets elsewhere. Note: `project_name` also lands in `extras` (existing
+  passthrough behaviour; doc-silent). P3 must consume `project_names`, not
+  `extras["project_name"]`.
+- **Notes:** Done. `Component.project_names: tuple[str,...]` added. Dedup loop
+  in `read_components` accumulates first-seen canonical rows; conflicts raise
+  `SystemExit` naming the component and field. Slug-collision check retained
+  over unique names. 10 new tests; suite: 167 passed (157 baseline + 10).
+  Fresh review: PASS; reviewer noted purl casefold (doc-ordered per A3) and
+  `project_name` in extras (doc-silent, existing behaviour — see note above).
 - **Incoming comments:**
 
 ### P2: enriched_output_csv
