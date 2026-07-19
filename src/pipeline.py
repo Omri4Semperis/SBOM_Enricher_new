@@ -193,7 +193,7 @@ async def apply_equality(
     if "license_code_url" in gt_columns:
         async with log_op("equality_url"):
             eq = await compare_url_content(
-                result.inferred_license_code_url,
+                result.license_file_path,
                 extras.get("license_code_url", ""),
                 run_dir,
                 slug,

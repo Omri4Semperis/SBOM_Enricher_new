@@ -354,6 +354,9 @@ def test_audit_fixture_triplets_and_score(tmp_path, monkeypatch):
     assert rows[0]["is_eq_license_name"] == "TRUE"
     assert rows[0]["is_eq_copyright"] == "TRUE"
     assert rows[0]["is_eq_license_code_url"] == "TRUE"
+    # Demo: licenses/ holds only inferred; no __eq_gt leftover
+    lic_names = {p.name for p in (out / "licenses").iterdir()} if (out / "licenses").is_dir() else set()
+    assert not any("__eq_" in n for n in lic_names)
     score_path = out / "score.csv"
     assert score_path.is_file()
     with score_path.open(newline="", encoding="utf-8-sig") as f:
@@ -361,6 +364,74 @@ def test_audit_fixture_triplets_and_score(tmp_path, monkeypatch):
     assert score_rows
     assert score_rows[0]["Count"] == "1"
     assert score_rows[0]["license_name"] == "Hit"
+
+
+def test_apply_equality_url_reuses_license_file_path(tmp_path, monkeypatch):
+    import equality
+    from input_csv import Component
+
+    run = tmp_path / "run"
+    slug = "solo@1.0"
+    (run / "per_component" / slug).mkdir(parents=True)
+    lic = run / "licenses" / f"{slug}.txt"
+    lic.parent.mkdir(parents=True)
+    lic.write_bytes(b"MIT License\n")
+
+    async def fake_gt_fetch(url, purl, dest_dir, fetch_slug, project_dirs=None):
+        licenses = Path(dest_dir) / "licenses"
+        licenses.mkdir(parents=True, exist_ok=True)
+        path = licenses / f"{fetch_slug}.txt"
+        path.write_bytes(b"MIT License\n")
+        return DownloadResult(resolved_url=url, saved_path=path, original_url=url)
+
+    monkeypatch.setattr(equality, "fetch_license_file", fake_gt_fetch)
+    result = pipeline.ComponentResult(
+        component=Component(
+            component_name=slug,
+            purl="pkg:npm/solo@1.0",
+            lib_name="solo",
+            version="1.0",
+            slug=slug,
+            extras={"license_code_url": "https://gt.example/LICENSE"},
+        ),
+        inferred_license_code_url="https://inf.example/LICENSE",
+        license_file_path=lic,
+    )
+    asyncio.run(
+        pipeline.apply_equality(result, run, ["license_code_url"], client=None)
+    )
+    assert result.is_eq_license_code_url == "TRUE"
+    assert not (run / "licenses" / f"{slug}__eq_gt.txt").exists()
+    assert lic.is_file()
+
+
+def test_apply_equality_url_missing_inferred_file_is_false(tmp_path):
+    from input_csv import Component
+
+    run = tmp_path / "run"
+    slug = "solo@1.0"
+    (run / "per_component" / slug).mkdir(parents=True)
+
+    result = pipeline.ComponentResult(
+        component=Component(
+            component_name=slug,
+            purl="pkg:npm/solo@1.0",
+            lib_name="solo",
+            version="1.0",
+            slug=slug,
+            extras={"license_code_url": "https://gt.example/LICENSE"},
+        ),
+        inferred_license_code_url="https://inf.example/LICENSE",
+        license_file_path=None,
+    )
+    asyncio.run(
+        pipeline.apply_equality(result, run, ["license_code_url"], client=None)
+    )
+    assert result.is_eq_license_code_url == "FALSE"
+    assert result.eq_license_code_url_reason == "inferred_file_missing"
+    assert not (run / "licenses").exists() or not any(
+        (run / "licenses").iterdir()
+    )
 
 
 def test_non_gt_fixture_no_is_eq_no_score(tmp_path, monkeypatch):
