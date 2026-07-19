@@ -201,8 +201,8 @@ Next action: {the next eligible phase per PLAN.md's table, or "plan complete"}
 
 ## Outcome
 Objective: Strengthen license_code_url prompt for holder-bearing project files (prompt-only).
-HEAD: 40b2d96 | Branch: master
-Files changed: src/prompts.py, tests/test_prompts.py, docs/plans/v2-grilled-requirements/PLAN.md, docs/plans/v2-grilled-requirements/P5_url_prompt_quality.md
+HEAD: 837d81a | Branch: master
+Files changed: src/prompts.py, tests/test_prompts.py, docs/plans/archive/v2-grilled-requirements/PLAN.md, docs/plans/archive/v2-grilled-requirements/P5_url_prompt_quality.md
 Commands run: entry suite 186 passed; T1/T2 test_prompts 1 passed; full suite 187 passed; exit re-check 1 + 187 passed
 Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 187 passed
 Assumptions: none
