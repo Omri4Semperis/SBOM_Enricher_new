@@ -241,20 +241,43 @@ def _ext_for(url: str, content_type: str) -> str:
     return ".txt"
 
 
-def _write_license(dest_dir: Path, slug: str, ext: str, body: bytes) -> Path:
+def _write_license(
+    dest_dir: Path,
+    slug: str,
+    ext: str,
+    body: bytes,
+    project_dirs: list[str] | None = None,
+) -> Path:
     licenses_dir = dest_dir / "licenses"
     licenses_dir.mkdir(parents=True, exist_ok=True)
-    flat = licenses_dir / f"{slug}{ext}"
-    flat.write_bytes(body)
+    name = f"{slug}{ext}"
+
+    if project_dirs:
+        seen: list[str] = []
+        for pdir in project_dirs:
+            if pdir in seen:
+                continue
+            seen.append(pdir)
+            target = licenses_dir / pdir
+            target.mkdir(parents=True, exist_ok=True)
+            (target / name).write_bytes(body)
+        canonical = licenses_dir / seen[0] / name
+    else:
+        canonical = licenses_dir / name
+        canonical.write_bytes(body)
 
     per = dest_dir / "per_component" / slug
     per.mkdir(parents=True, exist_ok=True)
-    (per / flat.name).write_bytes(body)
-    return flat
+    (per / name).write_bytes(body)
+    return canonical
 
 
 async def _try_one(
-    url: str, dest_dir: Path, slug: str, attempts: list[str]
+    url: str,
+    dest_dir: Path,
+    slug: str,
+    attempts: list[str],
+    project_dirs: list[str] | None = None,
 ) -> tuple[Path | None, str]:
     """Fetch one URL; return (saved path, "") on success, else (None, fail_kind)."""
     rewritten = rewrite_viewer_to_raw(url)
@@ -281,7 +304,7 @@ async def _try_one(
         return None, "html"
 
     ext = _ext_for(rewritten, content_type)
-    path = _write_license(dest_dir, slug, ext, body)
+    path = _write_license(dest_dir, slug, ext, body, project_dirs=project_dirs)
     attempts.append(f"ok {rewritten} -> {path.name}")
     return path, ""
 
@@ -291,6 +314,7 @@ async def fetch_license_file(
     purl: str,
     dest_dir: Path,
     slug: str,
+    project_dirs: list[str] | None = None,
 ) -> DownloadResult:
     """Download LICENSE from Claude URL (rewritten) or npm/unpkg fallbacks.
 
@@ -303,7 +327,9 @@ async def fetch_license_file(
     fail_kind = ""
 
     if original:
-        path, kind = await _try_one(original, dest_dir, slug, attempts)
+        path, kind = await _try_one(
+            original, dest_dir, slug, attempts, project_dirs=project_dirs
+        )
         if kind:
             fail_kind = kind
         if path is not None:
@@ -322,7 +348,9 @@ async def fetch_license_file(
         attempts.append("non-npm purl: skip npm fallback")
 
     for candidate in candidates:
-        path, kind = await _try_one(candidate, dest_dir, slug, attempts)
+        path, kind = await _try_one(
+            candidate, dest_dir, slug, attempts, project_dirs=project_dirs
+        )
         if kind:
             fail_kind = kind
         if path is not None:
@@ -341,7 +369,9 @@ async def fetch_license_file(
             attempts.append("non-nuget purl: skip nuget fallback")
 
     for candidate in nuget_cands:
-        path, kind = await _try_one(candidate, dest_dir, slug, attempts)
+        path, kind = await _try_one(
+            candidate, dest_dir, slug, attempts, project_dirs=project_dirs
+        )
         if kind:
             fail_kind = kind
         if path is not None:

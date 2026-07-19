@@ -4,6 +4,7 @@ import asyncio
 from unittest.mock import MagicMock
 
 from download import (
+    _write_license,
     fetch_license_file,
     is_generic_template,
     looks_like_html,
@@ -390,3 +391,35 @@ def test_fetch_rejects_generic_template(tmp_path, monkeypatch):
     assert not result.ok
     assert called == []
     assert any("reject template" in a for a in result.attempts)
+
+
+def test_write_license_flat_default(tmp_path):
+    body = b"MIT\n"
+    path = _write_license(tmp_path, "pkg@1", ".txt", body)
+    assert path == tmp_path / "licenses" / "pkg@1.txt"
+    assert path.read_bytes() == body
+    assert (tmp_path / "per_component" / "pkg@1" / "pkg@1.txt").read_bytes() == body
+
+
+def test_write_license_per_project(tmp_path):
+    body = b"MIT\n"
+    path = _write_license(tmp_path, "pkg@1", ".txt", body, project_dirs=["a", "b"])
+    assert path == tmp_path / "licenses" / "a" / "pkg@1.txt"
+    assert (tmp_path / "licenses" / "a" / "pkg@1.txt").read_bytes() == body
+    assert (tmp_path / "licenses" / "b" / "pkg@1.txt").read_bytes() == body
+    assert (tmp_path / "per_component" / "pkg@1" / "pkg@1.txt").read_bytes() == body
+    assert not (tmp_path / "licenses" / "pkg@1.txt").exists()
+
+
+def test_write_license_dedups_project_dirs(tmp_path):
+    body = b"MIT\n"
+    path = _write_license(
+        tmp_path, "pkg@1", ".txt", body, project_dirs=["a", "a", "b"]
+    )
+    assert path == tmp_path / "licenses" / "a" / "pkg@1.txt"
+    assert (tmp_path / "licenses" / "a" / "pkg@1.txt").is_file()
+    assert (tmp_path / "licenses" / "b" / "pkg@1.txt").is_file()
+    # One file under a/ (not written twice as siblings).
+    assert list((tmp_path / "licenses" / "a").iterdir()) == [
+        tmp_path / "licenses" / "a" / "pkg@1.txt"
+    ]
