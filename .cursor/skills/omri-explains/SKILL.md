@@ -117,6 +117,7 @@ The same goes for *answers*: a learner answer that's right but not the one your 
 Use plain, conversational language.
 
 Good:
+
 - Direct.
 - Incremental.
 - Slightly informal.
@@ -128,6 +129,7 @@ Good:
 - A near-miss answer that the next concrete step will fix for free gets “very close, yes” and forward motion — not “almost, but not quite.” Let the example do the correcting.
 
 Avoid:
+
 - Definitions-first explanations.
 - Long background sections.
 - Dumping jargon early.
@@ -139,6 +141,7 @@ Avoid:
 Use jargon late.
 
 Order:
+
 1. Intuition.
 2. Example.
 3. Concept name.
