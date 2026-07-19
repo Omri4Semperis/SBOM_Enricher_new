@@ -24,7 +24,7 @@ session (grilling not started yet).
 Base: `HEAD` (`30a06db`). No commits this session — all untracked:
 
 - `docs/SUGGESTIONS.md` — top-3 best-effort/value changes (GT-may-be-wrong premise)
-- `docs/analysis/2026-07-15_run-144424_root-cause-analysis.md` — full root-cause + adjusted score
+- `docs/archive/2026-07-15_run-144424_root-cause-analysis.md` — full root-cause + adjusted score
 - `ad_hoc_scripts/analysis/` — `analyze_run.py`, `dump_examples.py`, `verify_urls.py`, `rescore.py`
 - `ad_hoc_scripts/ad_hoc_scripts_output/` — dumps + rescore/verification text
 - `docs/HANDOFF.md` — this file

@@ -6,7 +6,7 @@ Historical grilling log for the fact-grade-first tranche. Requirements are
 embodied in `docs/plans/archive/fact-grade-tranche/`, ADR-0006, and
 `docs/CONTEXT.md`. Deferred levers + residual risks: `docs/BACKLOG.md`.
 Source plan: `docs/archive/SUGGESTIONS_2026-07-15_run-144424.md`. Root cause:
-`docs/analysis/2026-07-15_run-144424_root-cause-analysis.md`. The companion
+`docs/archive/2026-07-15_run-144424_root-cause-analysis.md`. The companion
 deferred list was archived as
 `docs/archive/DEFERRED_2026-07-15_fact-grade.md` (items migrated to BACKLOG).
 

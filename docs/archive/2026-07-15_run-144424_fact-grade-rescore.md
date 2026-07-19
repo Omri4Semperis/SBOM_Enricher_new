@@ -1,12 +1,15 @@
 # Fact-grade re-score — sign-off, run `20260715_144424_ClaudeOpu-4-8_380`
 
+Consumed: 2026-07-15 · Archived: 2026-07-19
+Status: CONSUMED — P4 sign-off of `docs/plans/archive/fact-grade-tranche/`.
+
 Analyst: agent session, 2026-07-15 (P4 of the `fact-grade-tranche` plan). This
 is the DECISIONS-H sign-off gate: confirms the P1-P3 grading/measurement
 changes move the frozen run the way the root-cause analysis predicted, using
 the **real** production functions plus bounded live HTTP probes — never a
 reimplemented policy.
 
-Source: `docs/analysis/2026-07-15_run-144424_root-cause-analysis.md` (the
+Source: `docs/archive/2026-07-15_run-144424_root-cause-analysis.md` (the
 predictions), `docs/archive/DECISIONS_2026-07-15_fact-grade.md` (the committed
 design). Reproduce with
 `python ad_hoc_scripts/analysis/rescore.py` (probe date: 2026-07-15; live

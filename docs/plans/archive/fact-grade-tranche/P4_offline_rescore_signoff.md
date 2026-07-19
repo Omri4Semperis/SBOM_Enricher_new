@@ -75,7 +75,7 @@ pre-committed targets (raising the headline is a non-goal).
 
 - `ad_hoc_scripts/analysis/rescore.py` — edit: import & call the real P1–P3
   functions; add bounded live probes; emit the movement table.
-- `docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md` — create: the
+- `docs/archive/2026-07-15_run-144424_fact-grade-rescore.md` — create: the
   promoted results doc (counts, method, caveats).
 - `docs/BACKLOG.md` — edit: append the accepted residual risks (DECISIONS branch I
   #2–#5) to the "Accepted residual risks" table.
@@ -108,11 +108,11 @@ here and in your `PLAN.md` block; if you can't proceed, follow **If blocked**.
 
 ### T2: Promote findings to a results doc
 
-- Steps: write `docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md` — the
+- Steps: write `docs/archive/2026-07-15_run-144424_fact-grade-rescore.md` — the
   confirmed counts per change, the method (real functions + live probes, run
   frozen), how it compares to the root-cause predictions, and any caveat (e.g.
   live-probe date, HEAD-ref skew for NuGet). Link back to
-  `docs/analysis/2026-07-15_run-144424_root-cause-analysis.md` and `docs/DECISIONS.md`.
+  `docs/archive/2026-07-15_run-144424_root-cause-analysis.md` and `docs/DECISIONS.md`.
 - Verify: `git status --porcelain` shows the new doc; it cites concrete numbers
   from T1's run.
 - Commit when green.
@@ -144,7 +144,7 @@ All of these, in order, before Exit criteria:
 Runnable proof the Demo is real:
 
 - `.\.venv\Scripts\python.exe ad_hoc_scripts\analysis\rescore.py` → exit 0, table with non-zero movement counts
-- `docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md` exists and cites the counts
+- `docs/archive/2026-07-15_run-144424_fact-grade-rescore.md` exists and cites the counts
 
 ## Rollback
 
@@ -209,7 +209,7 @@ Files changed (eb39ef2..a50e6bd):
 - `ad_hoc_scripts/analysis/rescore.py` — rewritten to import & call `grade_item`,
   `looks_like_html`/`nuget_candidates`/`is_generic_template`/`rewrite_viewer_to_raw`,
   `_is_stray_holder`; reimplemented `classify_*`/`holder_tokens` policy deleted.
-- `docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md` — new results doc.
+- `docs/archive/2026-07-15_run-144424_fact-grade-rescore.md` — new results doc.
 - `docs/BACKLOG.md` — accepted residual risks #5-#8 (DECISIONS branch I #2-#5).
 
 Commands + Test status:

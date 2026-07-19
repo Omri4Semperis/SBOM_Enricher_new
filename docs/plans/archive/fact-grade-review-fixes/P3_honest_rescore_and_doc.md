@@ -62,7 +62,7 @@ parts for this phase:
   isn't real) and keep only the guard-trigger count. The `license_code_url`
   section and NuGet-recall section stay as they are.
 
-`docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md` — the generated
+`docs/archive/2026-07-15_run-144424_fact-grade-rescore.md` — the generated
 sign-off doc. The false claim is the `copyright` section (lines ~62–76): a
 raw/adjusted table (Mismatch 78→58, Unknown 13→33) and the sentence "20 of the
 78 raw-Mismatch rows ... → move to `Unknown`". The "Comparison to root-cause
@@ -78,7 +78,7 @@ guaranteed-`Unknown` movement can be claimed from this offline pass.
 - `ad_hoc_scripts/analysis/rescore.py` — edit: `adjusted_copyright_grade` →
   guard-trigger detection only; `main()` copyright section → count only, no
   movement table; update the `_is_stray_holder` call to P2's signature.
-- `docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md` — edit: correct
+- `docs/archive/2026-07-15_run-144424_fact-grade-rescore.md` — edit: correct
   the copyright section and the predictions-comparison row.
 
 **Do not touch:** `src/copyright.py`, `src/download.py`, `tests/**`, and
@@ -105,7 +105,7 @@ if the phase can't proceed without it, follow **If blocked**.
 
 ### T2: Correct the false Unknown-movement claim in the analysis doc
 
-- Steps: In `docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md`, rewrite
+- Steps: In `docs/archive/2026-07-15_run-144424_fact-grade-rescore.md`, rewrite
   the `copyright` section (~lines 62–76): remove the raw/adjusted grade table
   and the "20 ... → move to `Unknown`" sentence; replace with an honest
   statement — the stray-holder guard is *reject-only*; N rows carry a holder the
@@ -118,7 +118,7 @@ if the phase can't proceed without it, follow **If blocked**.
   numbers — the run can't be re-executed here; if the old exact figure can't be
   re-derived, describe the guard behavior qualitatively and note the run is not
   reproducible from this checkout.
-- Verify: `Select-String -Path docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md -Pattern "move to .Unknown."` returns nothing (the false phrasing is gone).
+- Verify: `Select-String -Path docs/archive/2026-07-15_run-144424_fact-grade-rescore.md -Pattern "move to .Unknown."` returns nothing (the false phrasing is gone).
 - Commit when green (write the message at commit time: a concise line describing what this task changed).
 
 ## Validation gate
@@ -140,7 +140,7 @@ All of these, in order, before Exit criteria:
 Runnable proof the Demo is real:
 
 - `.\.venv\Scripts\python.exe -m py_compile ad_hoc_scripts/analysis/rescore.py` → exit 0, no output.
-- `Select-String -Path docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md -Pattern "move to .Unknown."` → no matches.
+- `Select-String -Path docs/archive/2026-07-15_run-144424_fact-grade-rescore.md -Pattern "move to .Unknown."` → no matches.
 - `.\.venv\Scripts\python.exe -m pytest -q` → exit 0, ≥132 passed.
 
 ## Anti-goals
@@ -167,7 +167,7 @@ guard-trigger count plus an explicit note that production continues through
 npm + web fallbacks. `py_compile` green, full suite still 136 passed.
 
 T2 is drafted in the working tree (uncommitted) against
-`docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md`: the false
+`docs/archive/2026-07-15_run-144424_fact-grade-rescore.md`: the false
 "20 of the 78 raw-Mismatch rows ... → move to `Unknown`" claim and the
 matching "Comparison to root-cause predictions" row are rewritten to state
 the guard is reject-only and does not by itself resolve a grade, without
@@ -176,7 +176,7 @@ inventing a new count (the frozen run dir is absent from this checkout).
 **Why blocked:** this phase's Exit criteria (and T2's own Verify) run:
 
 ```
-Select-String -Path docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md -Pattern "move to .Unknown." → no matches
+Select-String -Path docs/archive/2026-07-15_run-144424_fact-grade-rescore.md -Pattern "move to .Unknown." → no matches
 ```
 
 This still matches one line — `~55`, in the `license_code_url` section:
@@ -201,7 +201,7 @@ phase can be re-attempted and completed.
 **Working tree state:** T1 committed; T2's doc edits are uncommitted local
 changes (not reverted) so the drafted correction is available once the Exit
 criteria is fixed — see `git diff` on
-`docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md`.
+`docs/archive/2026-07-15_run-144424_fact-grade-rescore.md`.
 
 **Resolution (2026-07-16):** user reviewed the collision and ruled it wasn't
 the instruction's intent for the Exit criterion to reject an unrelated, true,
@@ -216,12 +216,12 @@ the false "20 of 78 → Unknown" claim in the generated analysis doc; update the
 `_is_stray_holder` call to P2's new signature.
 HEAD: 21180b1 | Branch: master
 Files changed: ad_hoc_scripts/analysis/rescore.py,
-docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md,
+docs/archive/2026-07-15_run-144424_fact-grade-rescore.md,
 docs/plans/fact-grade-review-fixes/P3_honest_rescore_and_doc.md,
 docs/plans/fact-grade-review-fixes/PLAN.md
 Commands run:
 - `py_compile ad_hoc_scripts/analysis/rescore.py` → exit 0, no output.
-- `Select-String -Path docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md -Pattern "move to .Unknown."` → one match, line 55, in the out-of-scope `license_code_url` section (pre-existing, unrelated, true statement) — accepted per the user's ruling (see Blocked/Resolution above); the copyright section's false claim is gone.
+- `Select-String -Path docs/archive/2026-07-15_run-144424_fact-grade-rescore.md -Pattern "move to .Unknown."` → one match, line 55, in the out-of-scope `license_code_url` section (pre-existing, unrelated, true statement) — accepted per the user's ruling (see Blocked/Resolution above); the copyright section's false claim is gone.
 - `pytest -q` → exit 0, 136 passed (unchanged from P2's exit state; this phase adds no tests).
 - Fresh review (subagent, generalPurpose, given the diff `cb10194..HEAD` on the two Touch files, this doc, and the ponytail-review tag lens): verdict PASS — no doc-compliance or over-engineering findings, no lens objections.
 Test status: `pytest -q` → 136 passed, exit 0.

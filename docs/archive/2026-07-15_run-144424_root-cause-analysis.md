@@ -1,5 +1,9 @@
 # Root-cause analysis — run `20260715_144424_ClaudeOpu-4-8_380`
 
+Consumed: 2026-07-15 · Archived: 2026-07-19
+Status: CONSUMED — embodied in `docs/plans/archive/fact-grade-tranche/`,
+ADR-0006, and `docs/archive/DECISIONS_2026-07-15_fact-grade.md`.
+
 Analyst: agent session, 2026-07-15. Scope: 380 components, audit mode,
 model `claude-opus-4-8`, 30 workers, wall 62.8 min, total cost $131.80.
 

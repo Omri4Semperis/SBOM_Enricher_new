@@ -50,7 +50,7 @@ No implementation started yet — the fixes below are all still TODO.
   through npm + Claude-web fallbacks. Fix: stop asserting a resulting grade for
   stray-holder rows — report only the guard-trigger count. Correct the
   "20 of the 78 raw-Mismatch rows → Unknown" claim in
-  `docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md` (lines ~68–102).
+  `docs/archive/2026-07-15_run-144424_fact-grade-rescore.md` (lines ~68–102).
 - **N1 (nit) — `src/download.py:321`**: A valid `pkg:nuget/` purl whose lookup
   yields no candidates is logged as "non-nuget purl", hiding the real failure.
   Fix: if the purl starts with `pkg:nuget/` but yielded no candidates, log
@@ -73,7 +73,7 @@ not run this session. Baseline from the review: `130 passed in 13.42s`.
 1. "Recognized GitHub host" (B1) means `github.com` and `www.github.com` only;
    no other GitHub-owned hosts are in scope.
 2. The generated analysis doc to correct for S4 is
-   `docs/analysis/2026-07-15_run-144424_fact-grade-rescore.md` (verified to
+   `docs/archive/2026-07-15_run-144424_fact-grade-rescore.md` (verified to
    contain the "20 ... → Unknown" claim).
 
 ## Open questions

@@ -25,7 +25,7 @@ builds the plan; do not start coding before the plan exists.
 - `docs/DECISIONS.md` — all committed decisions (branches A–I + H.1) and the
   recap. This is the single source of truth for the plan.
 - `docs/DEFERRED.md` — deferred/rejected items with triggers + owners.
-- `docs/analysis/2026-07-15_run-144424_root-cause-analysis.md` — evidence base.
+- `docs/archive/2026-07-15_run-144424_root-cause-analysis.md` — evidence base.
 - `docs/archive/SUGGESTIONS_2026-07-15_run-144424.md` — the original (archived)
   plan that was grilled.
 
