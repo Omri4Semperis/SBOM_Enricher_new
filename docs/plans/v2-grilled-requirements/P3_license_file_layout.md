@@ -258,7 +258,7 @@ Next action: {the next eligible phase per PLAN.md's table, or "plan complete"}
 ## Outcome
 
 Objective: Per-project license-file layout driven by `project_names`; cache restore matches; flat default kept for P4.
-HEAD: cacc978 | Branch: master
+HEAD: de153b8 | Branch: master
 Files changed:
 docs/plans/v2-grilled-requirements/P3_license_file_layout.md
 docs/plans/v2-grilled-requirements/PLAN.md
