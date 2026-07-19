@@ -1,3 +1,5 @@
+COMPLETED 2026-07-19 — historical record, not current truth
+
 # Plan: v2 grilled requirements (dedup, enriched CSV, license layout, audit reuse, URL prompt)
 
 **Live document.** Unlike the old design, this file is written to during
@@ -75,7 +77,7 @@ Invariants that hold across all phases:
 | [P2: enriched_output_csv](./P2_enriched_output_csv.md) | Emit `library_approvals_enriched.csv` (replace/keep/append) | P1 | done | d666d75 | 2026-07-19 |
 | [P3: license_file_layout](./P3_license_file_layout.md) | Per-project license-file layout; cache restore obeys it | P1 | done | f1a5c5a | 2026-07-19 |
 | [P4: one_license_file](./P4_one_license_file.md) | Audit URL equality reuses inferred file; `licenses/` holds only inferred | - | done | a039d7f | 2026-07-19 |
-| [P5: url_prompt_quality](./P5_url_prompt_quality.md) | Strengthen license-URL prompt (prompt-only) | - | pending | | |
+| [P5: url_prompt_quality](./P5_url_prompt_quality.md) | Strengthen license-URL prompt (prompt-only) | - | done | 23477d0 | 2026-07-19 |
 
 Eligibility: P1, P4, P5 can start immediately. P2 and P3 wait for P1 `done`.
 
@@ -173,6 +175,17 @@ are satisfied by the full suite passing.
 - **For other phases:** Prompt-only; changes `license_prompt` text in
   `src/prompts.py`. No interface change; no other phase depends on it.
 - **Notes:**
+  - Done. Extended `license_code_url rules:` with own-holder preference,
+    boilerplate forbid, AUTHORS/NOTICE/COPYRIGHT fallback, `.lesserv3`→AUTHORS
+    example, repo preferred-not-mandatory. Existing raw/pin/template rules kept.
+    `tests/test_prompts.py` substring checks. Suite: 187 passed (186 + 1).
+    Fresh review: PASS. Detail in P5 Outcome.
+  - Deviation: T1 Verify needs `tests/test_prompts.py` (T2); created test before
+    T1 verify; committed prompts then tests separately.
+  - Doc-ordered lens note: `.lesserv3` worked example longer than bare rule —
+    kept per ADR/phase.
+  - Plan complete: ADRs 0011–0015 match shipped code; no new decisions to
+    graduate; stamped COMPLETED and archived.
 - **Incoming comments:**
 
 ## On completion
