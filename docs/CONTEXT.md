@@ -7,8 +7,10 @@ that file; optionally compares the enrichment against supplied ground truth.
 ## Language
 
 **Component**:
-A single software dependency to be enriched — one input row, identified by a
-`component_name` and a `purl`.
+A single software dependency to be enriched, identified by `component_name`
+(with a consistent `purl`). Multiple input rows may share one Component (e.g.
+across projects); enrichment runs once per Component. Conflicting identity data
+for the same name rejects the run — ADR 0011.
 
 **Cached Historical Cost**:
 The LLM charges incurred when a cached enrichment was originally produced.
@@ -48,13 +50,27 @@ preflight, and other quality assurance.
 The license associated with a component, e.g. `MIT`, `GPL-3.0`.
 
 **Inferred License Code URL**:
-A reachable, downloadable URL to the component's actual LICENSE file, ideally
-from the raw publication of the component.
+A reachable, downloadable URL to the component's **own** license/copyright file
+— one published for this specific component (its repo or package platform) that
+names a concrete copyright holder for it. NOT the canonical/boilerplate text of
+the license itself (e.g. the full LGPLv3 legalese naming no holder). When the
+standard LICENSE/COPYING is generic boilerplate, an AUTHORS/NOTICE/COPYRIGHT
+file that carries the holder is preferred.
+_Avoid_: license template, boilerplate license text
 
 **Inferred Copyright**:
 The copyright statement inferred for a component. A statement extracted from
 the downloaded LICENSE file takes precedence over a package-registry author
 fallback, which takes precedence over source-backed web inference.
+
+**Enriched Output CSV**:
+The deliverable `library_approvals_enriched.csv` — the input CSV passed through
+verbatim, with the three enrichment fields written in: replacing a present
+column with our value (unless ours is empty/`UNKNOWN`/errored, then the original
+is kept) and adding an absent column outright. One row per original input row
+(duplicates repeated). Distinct from `results_*.csv` (audit view, one row per
+unique Component) and `results_*_extended.csv` (raw/cost detail). See ADR 0012.
+_Avoid_: results csv, output csv — for this specific file.
 
 **Ground Truth**:
 User-supplied `license_name` / `license_code_url` / `copyright` columns in the
@@ -70,7 +86,8 @@ The TRUE/FALSE verdict that an inferred value matches its Ground Truth,
 recorded in an `is_eq_*` column. The URL field's equality ladder can also
 return the deterministic `UNSCOREABLE` sentinel (see ADR 0006) when the
 Ground Truth itself can't be fetched as a file; the judge never issues it —
-it stays strictly TRUE/FALSE.
+it stays strictly TRUE/FALSE. URL content comparison reuses the enrichment
+license file and does not leave Ground Truth copies in `licenses/` (ADR 0013).
 
 **Scoring Outcome**:
 The grade for one inferred enrichment field against Ground Truth: **hit**
