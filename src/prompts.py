@@ -60,6 +60,15 @@ license_code_url rules:
   an HTML viewer (github.com/.../blob/...), not a registry archive/tarball.
 - Pin to the release tag or commit SHA for this version — not main/master/HEAD.
 - Avoid generic template pages (spdx.org, opensource.org, choosealicense, etc.).
+- Prefer the component's OWN published license/copyright file (its repo or
+  package platform) that names a concrete holder for THIS component. A repo
+  is preferred, not mandatory.
+- Do NOT return canonical/boilerplate license text that names no holder
+  (e.g. the full LGPL/Apache legalese).
+- When the standard LICENSE/COPYING is generic boilerplate, prefer an
+  AUTHORS/NOTICE/COPYRIGHT file that carries the holder. Worked example: for
+  a package whose LICENSE was LGPLv3 boilerplate (.lesserv3), the holder was
+  in AUTHORS — return that.
 - If no project file can be found → empty string.
 
 Return exactly the three fields in the JSON schema. No markdown fences."""
