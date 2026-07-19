@@ -47,6 +47,7 @@ Current code (read first):
 
 `src/equality.py` — `compare_url_content(inferred_url, gt_url, dest_dir, slug,
 *, client=None)`:
+
 - downloads BOTH via `fetch_license_file(url, "", dest_dir, f"{slug}__eq_inf")`
   and `...f"{slug}__eq_gt"`, each writing into `licenses/` + `per_component/`;
 - inferred download fail → `EqResult("FALSE", "inferred_url_download_failed")`;
@@ -85,6 +86,7 @@ Design (laziest correct):
   argument.
 
 Gotchas:
+
 - Read the GT bytes into memory BEFORE unlinking, then compare.
 - `unlink(missing_ok=True)` guards the (rare) case the flat copy isn't where
   expected; never raise from cleanup.

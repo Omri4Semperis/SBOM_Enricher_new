@@ -106,6 +106,7 @@ Design (laziest correct):
   passes it into every `process_component` call.
 
 Gotchas:
+
 - Dedup `project_dirs` before writing so a component listed twice under the
   same project doesn't double-write; create subdirs with `mkdir(parents=True,
   exist_ok=True)` (the pre-created empty `run_dir/licenses` is fine).
