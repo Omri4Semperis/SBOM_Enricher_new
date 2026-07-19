@@ -6,7 +6,7 @@
 ## Deferred levers
 
 | # | Lever | Trigger to pull | Owner |
-|---|-------|-----------------|-------|
+| - | - | - | - |
 | 1 | **Restore the consistency judge** (GPT-4.1 self-check on Claude's license reasoning) — trade mismatches for unknowns | License-inference scores look weak (many mismatches vs unknowns) | Omri — post first score-bearing runs |
 | 2 | **Broaden deterministic download fallback** beyond npm/unpkg (PyPI, Maven, Cargo, …) | Non-npm ecosystems routinely fail download despite Claude finding a name | Omri — when ecosystem mix demands it |
 | 3 | **Mid-run circuit-breaker** (abort / pause on systemic failure, e.g. mass 401s) | All-`UNKNOWN` + Ctrl-C proves too painful in practice | Omri — only if it actually bites |
@@ -18,7 +18,7 @@
 ## Accepted residual risks (no mitigation in v2)
 
 | # | Risk | Why accepted |
-|---|------|--------------|
+| - | - | - |
 | 1 | **Cost / time runaway** — no budget or wall-clock cap; high `workers` can burn until done or Ctrl-C | Progress bar + ETA + Ctrl-C are enough until a run proves otherwise |
 | 2 | **Stale cache** — all-or-nothing hit on `component_name`; upstream LICENSE/copyright changes are invisible until `cache_read` is cleared/redirected | Cache is a speed win for identical re-runs; operator owns invalidation |
 | 3 | **Provider rate limits** — mid-run 429s become per-row `UNKNOWN`s (retries then fail-closed); no run abort | Matches locked "no circuit-breaker" stance; circuit-breaker is lever #3 |
