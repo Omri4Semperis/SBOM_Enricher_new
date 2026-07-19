@@ -74,7 +74,7 @@ Invariants that hold across all phases:
 | [P1: input_dedup_conflict](./P1_input_dedup_conflict.md) | Allow duplicate names; reject only true conflicts; aggregate `project_names` | - | done | 9c0eead | 2026-07-19 |
 | [P2: enriched_output_csv](./P2_enriched_output_csv.md) | Emit `library_approvals_enriched.csv` (replace/keep/append) | P1 | done | d666d75 | 2026-07-19 |
 | [P3: license_file_layout](./P3_license_file_layout.md) | Per-project license-file layout; cache restore obeys it | P1 | done | f1a5c5a | 2026-07-19 |
-| [P4: one_license_file](./P4_one_license_file.md) | Audit URL equality reuses inferred file; `licenses/` holds only inferred | - | pending | | |
+| [P4: one_license_file](./P4_one_license_file.md) | Audit URL equality reuses inferred file; `licenses/` holds only inferred | - | done | a039d7f | 2026-07-19 |
 | [P5: url_prompt_quality](./P5_url_prompt_quality.md) | Strengthen license-URL prompt (prompt-only) | - | pending | | |
 
 Eligibility: P1, P4, P5 can start immediately. P2 and P3 wait for P1 `done`.
@@ -159,6 +159,13 @@ are satisfied by the full suite passing.
   `_write_license`'s flat default (see P3 note). If P3 is not yet done, P4
   still works against today's flat `licenses/`.
 - **Notes:**
+  - Done. `compare_url_content(inferred_path, ...)` reuses enrichment file;
+    missing → `FALSE inferred_file_missing` (no GT fetch); GT still fetched
+    flat then `unlink`ed from `licenses/`; `per_component/` GT kept.
+    `apply_equality` passes `result.license_file_path`. Suite: 186 passed
+    (183 + 3). Fresh review: PASS. Detail in P4 Outcome.
+  - Doc-ordered lens note: write-then-unlink GT kept (anti-goal: no download
+    skip flag).
 - **Incoming comments:**
 
 ### P5: url_prompt_quality

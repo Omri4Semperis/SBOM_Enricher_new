@@ -24,10 +24,10 @@ inferred file. `per_component/{slug}/` may keep both copies.
 Run each; all must hold before any other work. If any fails, follow
 **If blocked** — do not improvise around it.
 
-- [ ] Read this phase's block in `PLAN.md`, including any **Incoming comments** — they amend this doc
-- [ ] No dependencies (independent of P3; works against flat or per-project `licenses/`)
-- [ ] `.\.venv\Scripts\python.exe -m pytest -q` → exit 0, ≥157 passed
-- [ ] `git status --porcelain` → empty (clean tree)
+- [x] Read this phase's block in `PLAN.md`, including any **Incoming comments** — they amend this doc
+- [x] No dependencies (independent of P3; works against flat or per-project `licenses/`)
+- [x] `.\.venv\Scripts\python.exe -m pytest -q` → exit 0, ≥157 passed (183)
+- [x] `git status --porcelain` → empty (clean tree)
 
 ## Context capsule
 
@@ -193,16 +193,21 @@ phase's doc. To abandon work already done, roll back with
    hash) and Updated (today).
 3. In `PLAN.md`, reflect a concise outcome into this phase's Phase-notes block.
    Keep it short; write the full detail below and point to it.
-4. Record the full outcome in this doc under an **Outcome** heading:
+4. Record the full outcome in this doc under an **Outcome** heading (below).
 
-```txt
+## Fresh-review notes
+
+- Fresh review PASS (`git diff a039d7f..HEAD`). Findings: none.
+- Doc-ordered lens note (not fixed): write-then-`unlink` flat GT via
+  `fetch_license_file` looks wasteful vs never writing — kept per anti-goal
+  (no `download.py` skip flag; D3 keeps `per_component/` GT).
+
 ## Outcome
-Objective: {phase goal, one line}
-HEAD: {git rev-parse --short HEAD} | Branch: {git branch --show-current}
-Files changed: {git diff --name-only <baseline>..HEAD output}
-Commands run: {the Verify/gate commands and their observed results}
-Test status: {suite command + observed result}
-Assumptions: {numbered, or "none"}
-Open questions: {numbered, or "none"}
-Next action: {the next eligible phase per PLAN.md's table, or "plan complete"}
-```
+Objective: Audit URL equality reuses enrichment-saved inferred file; GT flat copy deleted after compare.
+HEAD: d3cb415 | Branch: master
+Files changed: src/equality.py, src/pipeline.py, tests/test_equality.py, tests/test_pipeline.py
+Commands run: entry suite 183 passed; T1 test_equality 11 passed; T2 test_pipeline 13 passed; full suite 186 passed; exit re-check 11 + 186 passed
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 186 passed
+Assumptions: none
+Open questions: none
+Next action: P5 (url_prompt_quality) — only remaining pending phase
