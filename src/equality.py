@@ -113,25 +113,27 @@ async def compare_copyright(
 
 
 async def compare_url_content(
-    inferred_url: str,
+    inferred_path: Path | None,
     gt_url: str,
     dest_dir: Path,
     slug: str,
     *,
     client: Gpt41Client | None = None,
 ) -> EqResult:
-    """Download both URLs; compare LICENSE bytes (ADR 0002). Empty purl → no npm fallback."""
-    inf = await fetch_license_file((inferred_url or "").strip(), "", dest_dir, f"{slug}__eq_inf")
-    if not inf.ok:
-        return EqResult("FALSE", "inferred_url_download_failed")
+    """Reuse enrichment-saved inferred file; fetch GT; compare LICENSE bytes (ADR 0002/0013)."""
+    if inferred_path is None or not inferred_path.is_file():
+        return EqResult("FALSE", "inferred_file_missing")
+
+    a = inferred_path.read_bytes()
     gt = await fetch_license_file((gt_url or "").strip(), "", dest_dir, f"{slug}__eq_gt")
     if not gt.ok:
         if gt.fail_kind == "html":
             return EqResult("UNSCOREABLE", "gt_not_a_file")
         return EqResult("FALSE", "gt_url_download_failed")
 
-    a = inf.saved_path.read_bytes()
     b = gt.saved_path.read_bytes()
+    gt.saved_path.unlink(missing_ok=True)
+
     if a == b:
         return EqResult("TRUE", "identical")
     if _normalize_license_bytes(a) == _normalize_license_bytes(b):
