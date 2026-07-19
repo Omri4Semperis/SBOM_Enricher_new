@@ -204,8 +204,8 @@ phase's doc. To abandon work already done, roll back with
 
 ## Outcome
 Objective: Audit URL equality reuses enrichment-saved inferred file; GT flat copy deleted after compare.
-HEAD: d3cb415 | Branch: master
-Files changed: src/equality.py, src/pipeline.py, tests/test_equality.py, tests/test_pipeline.py
+HEAD: 288d6d8 | Branch: master
+Files changed: src/equality.py, src/pipeline.py, tests/test_equality.py, tests/test_pipeline.py, docs/plans/v2-grilled-requirements/PLAN.md, docs/plans/v2-grilled-requirements/P4_one_license_file.md
 Commands run: entry suite 183 passed; T1 test_equality 11 passed; T2 test_pipeline 13 passed; full suite 186 passed; exit re-check 11 + 186 passed
 Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 186 passed
 Assumptions: none
