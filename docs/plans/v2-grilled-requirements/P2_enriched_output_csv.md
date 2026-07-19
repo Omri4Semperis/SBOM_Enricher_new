@@ -211,14 +211,23 @@ phase's doc. To abandon work already done, roll back with
    short; write the full detail below and point to it.
 4. Record the full outcome in this doc under an **Outcome** heading:
 
-```txt
 ## Outcome
-Objective: {phase goal, one line}
-HEAD: {git rev-parse --short HEAD} | Branch: {git branch --show-current}
-Files changed: {git diff --name-only <baseline>..HEAD output}
-Commands run: {the Verify/gate commands and their observed results}
-Test status: {suite command + observed result}
-Assumptions: {numbered, or "none"}
-Open questions: {numbered, or "none"}
-Next action: {the next eligible phase per PLAN.md's table, or "plan complete"}
-```
+Objective: Emit `library_approvals_enriched.csv` via post-run join (replace/keep/append).
+HEAD: 18e53b1 | Branch: master
+Files changed:
+- docs/plans/v2-grilled-requirements/PLAN.md
+- src/enriched_csv.py
+- src/input_csv.py
+- src/main.py
+- tests/test_enriched_csv.py
+Commands run:
+- Entry: `pytest -q` → 167 passed; clean tree
+- T1 Verify: `pytest tests/test_input_csv.py -q` → 15 passed
+- T2 Verify: `pytest tests/test_enriched_csv.py -q` → 8 passed
+- T3/gate: `pytest -q` → 175 passed
+- Exit: `pytest tests/test_enriched_csv.py -q` → 8 passed; `pytest -q` → 175 passed
+- Fresh review (subagent on `git diff d666d75..HEAD`): PASS, no findings
+Test status: `.\.venv\Scripts\python.exe -m pytest -q` → 175 passed
+Assumptions: none
+Open questions: none
+Next action: P3 (license_file_layout) or P4 (one_license_file) or P5 (url_prompt_quality) — all eligible (P3 needs P1 done ✓)
