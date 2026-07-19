@@ -55,7 +55,8 @@ A reachable, downloadable URL to the component's **own** license/copyright file
 names a concrete copyright holder for it. NOT the canonical/boilerplate text of
 the license itself (e.g. the full LGPLv3 legalese naming no holder). When the
 standard LICENSE/COPYING is generic boilerplate, an AUTHORS/NOTICE/COPYRIGHT
-file that carries the holder is preferred.
+file that carries the holder is preferred. Quality is enforced by prompt only
+(ADR 0015).
 _Avoid_: license template, boilerplate license text
 
 **Inferred Copyright**:

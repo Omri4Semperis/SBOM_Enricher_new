@@ -27,6 +27,7 @@
 | 6 | **HTML-signal false positive** — a real raw license mis-served with `Content-Type: text/html` wrongly grades `Unscoreable` | Low: requires a body-sniff match *and* the inferred file already downloaded OK; `Unscoreable` is neutral, not a scoring loss |
 | 7 | **Copyright denylist upkeep** — the stray-holder reject list (`src/copyright.py`) grows manually as new generic upstream notices appear | Small, additive maintenance |
 | 8 | **Empty→Unknown flatters recall** — a fetchable license missed only by a transient network flake grades `Unknown`, not `Mismatch` | `Unknown` is honest ("didn't answer"); retries mitigate |
+| 9 | **Prompt-only URL quality** — Claude can still return boilerplate license text despite ADR 0015; no detection safety net | Accepted until it recurs; owner Omri |
 
 ## Out of scope (non-goals, not levers)
 
