@@ -139,6 +139,8 @@ are satisfied by the full suite passing.
   flat (one dir per unique component). `ComponentResult.license_file_path`
   remains a single canonical path (first project copy, or flat).
 - **Notes:**
+  - Deviation: touched `tests/test_pipeline.py` + `tests/test_summary.py`
+    (download fakes +`project_dirs=None`) — not in Touch; T3 signature fallout.
 - **Incoming comments:**
   - 2026-07-19 [from planner] P4 downloads the GT file in flat mode then
     deletes it. Do not remove or repurpose the no-project (flat) branch of

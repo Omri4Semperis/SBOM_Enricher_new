@@ -22,7 +22,7 @@ async def _fake_infer(purl, lib_name, version, model):
     }
 
 
-async def _fake_download(claude_url, purl, dest_dir, slug):
+async def _fake_download(claude_url, purl, dest_dir, slug, project_dirs=None):
     raw = "https://raw.githubusercontent.com/foo/bar/main/LICENSE"
     licenses = dest_dir / "licenses"
     licenses.mkdir(parents=True, exist_ok=True)
@@ -153,7 +153,7 @@ def test_empty_purl_noted_in_story(tmp_path, monkeypatch):
 
 
 def test_no_file_still_resolves_copyright(tmp_path, monkeypatch):
-    async def fail_download(claude_url, purl, dest_dir, slug):
+    async def fail_download(claude_url, purl, dest_dir, slug, project_dirs=None):
         return DownloadResult(
             resolved_url="",
             saved_path=None,

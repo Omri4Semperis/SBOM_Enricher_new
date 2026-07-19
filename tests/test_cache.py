@@ -68,6 +68,24 @@ def test_hit_restores_file_into_run_dir(tmp_path):
     assert flat.read_bytes() == record.license_path.read_bytes()
 
 
+def test_hit_restores_per_project(tmp_path):
+    cache_dir = tmp_path / "cache"
+    result = _full_result(tmp_path)
+    write_cache(cache_dir, "solo@1.0", result)
+    record = read_cache(cache_dir, "solo@1.0")
+    assert isinstance(record, CachedRecord)
+    run = tmp_path / "run"
+    path = restore_license_file(
+        record, run, "solo@1.0", project_dirs=["proj_a", "proj_b"]
+    )
+    assert path == run / "licenses" / "proj_a" / "solo@1.0.txt"
+    body = record.license_path.read_bytes()
+    assert path.read_bytes() == body
+    assert (run / "licenses" / "proj_b" / "solo@1.0.txt").read_bytes() == body
+    assert (run / "per_component" / "solo@1.0" / "solo@1.0.txt").read_bytes() == body
+    assert not (run / "licenses" / "solo@1.0.txt").exists()
+
+
 def test_store_writes_historical_cost_from_metas(tmp_path):
     cache_dir = tmp_path / "cache"
     result = _full_result(tmp_path)

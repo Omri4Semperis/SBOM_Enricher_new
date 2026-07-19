@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
 
+from download import _write_license
 from pricing import CallMeta, combine, format_cost
 
 INDEX_NAME = "cache.csv"
@@ -132,15 +133,13 @@ def write_cache(cache_write: Path | None, component_name: str, result: object) -
     return True
 
 
-def restore_license_file(record: CachedRecord, run_dir: Path, slug: str) -> Path:
-    """Copy cached license into run licenses/ + per_component/, return flat path."""
+def restore_license_file(
+    record: CachedRecord,
+    run_dir: Path,
+    slug: str,
+    project_dirs: list[str] | None = None,
+) -> Path:
+    """Copy cached license into run licenses/ + per_component/; layout matches download."""
     ext = record.license_path.suffix or ".txt"
     body = record.license_path.read_bytes()
-    licenses_dir = run_dir / "licenses"
-    licenses_dir.mkdir(parents=True, exist_ok=True)
-    flat = licenses_dir / f"{slug}{ext}"
-    flat.write_bytes(body)
-    per = run_dir / "per_component" / slug
-    per.mkdir(parents=True, exist_ok=True)
-    (per / flat.name).write_bytes(body)
-    return flat
+    return _write_license(run_dir, slug, ext, body, project_dirs=project_dirs)

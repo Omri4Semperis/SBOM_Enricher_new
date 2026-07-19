@@ -18,6 +18,7 @@ from gpt41_client import Gpt41Client
 from input_csv import Component
 from pricing import CallMeta
 from results_csv import ResultsWriter
+from run_dir import build_project_dir_map
 from scoring import grade_row
 
 STORY_FILENAME = "story.txt"
@@ -66,15 +67,22 @@ async def process_component(
     *,
     cache_read: Path | None = None,
     cache_write: Path | None = None,
+    project_map: dict[str, str] | None = None,
 ) -> ComponentResult:
     result = ComponentResult(component=comp)
     if not (comp.purl or "").strip():
         append_story(run_dir, comp.slug, "no purl")
 
+    dirs: list[str] | None = None
+    if project_map and comp.project_names:
+        dirs = list(dict.fromkeys(project_map[r] for r in comp.project_names))
+
     cached = read_cache(cache_read, comp.component_name)
     emit("cache", "event", kind="read", hit=cached is not None)
     if cached is not None:
-        flat = restore_license_file(cached, run_dir, comp.slug)
+        flat = restore_license_file(
+            cached, run_dir, comp.slug, project_dirs=dirs
+        )
         result.inferred_license_name = cached.inferred_license_name
         result.inferred_license_code_url = cached.inferred_license_code_url
         result.inferred_copyright = cached.inferred_copyright
@@ -106,7 +114,11 @@ async def process_component(
     t1 = time.perf_counter()
     async with log_op("download"):
         dl = await fetch_license_file(
-            data["license_code_url"], comp.purl, run_dir, comp.slug
+            data["license_code_url"],
+            comp.purl,
+            run_dir,
+            comp.slug,
+            project_dirs=dirs,
         )
     dl_elapsed = time.perf_counter() - t1
     result.download_attempts = list(dl.attempts)
@@ -220,6 +232,7 @@ async def run_workers(
     client = Gpt41Client()
     sem = asyncio.Semaphore(config.workers)
     results: list[ComponentResult] = []
+    project_map = build_project_dir_map(components)
     # Free lanes emulate worker identity: the semaphore bounds concurrency but
     # gives no slot number, so we hand out an id on acquire for concurrency viz.
     free_slots = list(range(config.workers))
@@ -241,6 +254,7 @@ async def run_workers(
                                     client,
                                     cache_read=config.cache_read,
                                     cache_write=config.cache_write,
+                                    project_map=project_map,
                                 )
                                 await apply_equality(
                                     result, run_dir, gt_columns, client

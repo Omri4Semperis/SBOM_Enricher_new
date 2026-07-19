@@ -134,6 +134,11 @@ in `run_workers`, not `main`), and anything not listed under Touch. Needing an
 unlisted file means the plan is wrong: note it here + a comment in your
 `PLAN.md` block; if blocked, follow **If blocked**.
 
+**Deviation (T3):** `tests/test_pipeline.py` and `tests/test_summary.py` not in
+Touch, but their `_fake_download` / local fail fakes rejected the new
+`project_dirs=` kwarg. Added `project_dirs=None` so suite stays green — T4
+fallout.
+
 ## Tasks
 
 ### T1: project-dir map builder

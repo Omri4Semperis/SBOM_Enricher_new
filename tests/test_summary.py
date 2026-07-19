@@ -24,7 +24,7 @@ async def _fake_infer(purl, lib_name, version, model):
     }
 
 
-async def _fake_download(claude_url, purl, dest_dir, slug):
+async def _fake_download(claude_url, purl, dest_dir, slug, project_dirs=None):
     raw = "https://raw.githubusercontent.com/foo/bar/main/LICENSE"
     licenses = dest_dir / "licenses"
     licenses.mkdir(parents=True, exist_ok=True)
