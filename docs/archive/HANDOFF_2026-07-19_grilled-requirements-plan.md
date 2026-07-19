@@ -1,5 +1,9 @@
 # HANDOFF — Write implementation plan for 2026-07-19 grilled requirements
 
+Consumed: 2026-07-19 · Archived: 2026-07-19
+
+> Spent. Plan written to `docs/plans/v2-grilled-requirements/`.
+
 - Objective: Produce an implementation plan (via `complex-plan-create`) for the
   five grilled requirements. Decisions are already signed off — do not re-grill.
 - Repo: C:/Users/OmriNardiNiri/Documents/_Dev/2026-06-07 improve sbom-enricher agent/SBOM_Enricher_new
@@ -8,6 +12,7 @@
 - Dirty: 5 uncommitted paths (docs only: CONTEXT.md, DECISIONS.md, ADRs 0011–0013)
 
 ## Files changed
+
 Base: working tree vs HEAD (uncommitted grilling docs; not yet committed).
 
 - M docs/CONTEXT.md — glossary: Component, Enriched Output CSV, Inferred License Code URL, Equality→0013
@@ -17,21 +22,26 @@ Base: working tree vs HEAD (uncommitted grilling docs; not yet committed).
 - A docs/adr/0013-audit-reuse-inferred-license-file.md
 
 ## Commands run + results
+
 - Grilling + domain-modeling only; no builds/tests this session.
 
 ## Test status
+
 not run
 
 ## Assumptions
+
 1. Docs above are complete enough to plan; no need to re-open design questions
    unless a plan phase discovers a contradiction with code.
 2. C (project layout) and E (prompt-only URL quality) have no ADRs by design —
    they live only in DECISIONS.md / CONTEXT (URL meaning).
 
 ## Open questions
+
 None — grilling signed off; ADRs accepted.
 
 ## Chat residue (not elsewhere, or easy to miss)
+
 1. **Do not re-grill.** User confirmed docs are the source of truth for planning.
 2. **"Parsing error"** appeared in the original ask; codebase has no such
    sentinel. "Bad" enrichment value = empty/whitespace, `UNKNOWN`, or component
@@ -47,6 +57,7 @@ None — grilling signed off; ADRs accepted.
    - `src/cache.py` — `restore_license_file` must obey project layout (F2)
 
 ## Next action
+
 Using `.cursor/skills/complex-plan-create/SKILL.md`, create a multi-phase
 implementation plan whose sole requirements sources are:
 `docs/DECISIONS.md` (section 2026-07-19), `docs/CONTEXT.md`,
