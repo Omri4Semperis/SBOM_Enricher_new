@@ -72,7 +72,7 @@ Invariants that hold across all phases:
 | Phase | Purpose | Depends on | Status | Baseline | Updated |
 | - | - | - | - | - | - |
 | [P1: input_dedup_conflict](./P1_input_dedup_conflict.md) | Allow duplicate names; reject only true conflicts; aggregate `project_names` | - | done | 9c0eead | 2026-07-19 |
-| [P2: enriched_output_csv](./P2_enriched_output_csv.md) | Emit `library_approvals_enriched.csv` (replace/keep/append) | P1 | pending | | |
+| [P2: enriched_output_csv](./P2_enriched_output_csv.md) | Emit `library_approvals_enriched.csv` (replace/keep/append) | P1 | in progress | d666d75 | 2026-07-19 |
 | [P3: license_file_layout](./P3_license_file_layout.md) | Per-project license-file layout; cache restore obeys it | P1 | pending | | |
 | [P4: one_license_file](./P4_one_license_file.md) | Audit URL equality reuses inferred file; `licenses/` holds only inferred | - | pending | | |
 | [P5: url_prompt_quality](./P5_url_prompt_quality.md) | Strengthen license-URL prompt (prompt-only) | - | pending | | |

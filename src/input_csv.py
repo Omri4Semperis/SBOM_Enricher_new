@@ -39,6 +39,16 @@ def parse_component_name(component_name: str) -> tuple[str, str]:
     return lib_name, version
 
 
+def read_input_rows(path: Path | str) -> tuple[list[str], list[dict[str, str]]]:
+    """Raw header + every row verbatim (order preserved, duplicates kept)."""
+    path = Path(path)
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        fieldnames = list(reader.fieldnames or [])
+        rows = [dict(row) for row in reader]
+    return fieldnames, rows
+
+
 def read_components(path: Path | str) -> list[Component]:
     path = Path(path)
     with path.open(newline="", encoding="utf-8-sig") as f:
