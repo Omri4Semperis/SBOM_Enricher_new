@@ -9,8 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from config import REPO_ROOT, Config, load_config
+from enriched_csv import write_enriched_csv
 from eventlog import close_event_log, emit, init_event_log
-from input_csv import read_components
+from input_csv import read_components, read_input_rows
 from pipeline import run_workers
 from preflight import preflight
 from progress import Progress
@@ -104,6 +105,10 @@ def run(config: Config) -> Path:
             "(see extended CSV 'error' column)",
             file=sys.stderr,
         )
+    fieldnames, rows = read_input_rows(config.input_file_path)
+    write_enriched_csv(
+        out / "library_approvals_enriched.csv", fieldnames, rows, results
+    )
     if gt_columns:
         write_score_csv(out / "score.csv", results, gt_columns)
     write_summary(
