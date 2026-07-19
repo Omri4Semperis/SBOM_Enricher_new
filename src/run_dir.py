@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from config import Config
-from input_csv import Component
+from input_csv import Component, make_slug
 
 _CLAUDE_MODEL = re.compile(r"claude-([a-z]+)-(\d+)(?:-(\d+))?")
 
@@ -27,6 +27,25 @@ def model_short(model: str) -> str:
 
 def results_csv_name(model: str, n_components: int) -> str:
     return f"results_{model_short(model)}_{n_components}.csv"
+
+
+def build_project_dir_map(components: list[Component]) -> dict[str, str]:
+    """Map raw project_name → dir name. {} when no component has project_names."""
+    mapping: dict[str, str] = {}
+    used: set[str] = set()
+    for comp in components:
+        for raw in comp.project_names:
+            if raw in mapping:
+                continue
+            base = "_misc" if raw == "" else make_slug(raw.strip())
+            dirname = base
+            n = 1
+            while dirname in used:
+                dirname = f"{base}({n})"
+                n += 1
+            used.add(dirname)
+            mapping[raw] = dirname
+    return mapping
 
 
 def create_run_dir(config: Config, components: list[Component]) -> Path:
