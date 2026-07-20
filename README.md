@@ -13,6 +13,21 @@ downloadable **LICENSE-file URL** (plus the downloaded file), and the
 carries ground-truth columns, it also **audits** the enrichment against them and
 scores accuracy.
 
+<!--
+What's new — 2026-07-19 (v2 grilled requirements; ADRs 0011–0015)
+
+- Duplicate component_name rows allowed across projects; only true conflicts
+  (differing purl / GT fields) abort. project_names aggregated per component.
+- New consumer deliverable: library_approvals_enriched.csv (input rows +
+  enrichment columns; replace/keep/append rules).
+- License files laid out per project under licenses/{project}/ when the input
+  has project_name; flat licenses/{slug}.ext when it does not.
+- Audit URL equality reuses the already-downloaded inferred license file;
+  licenses/ keeps only inferred copies (no stray GT temps).
+- License-URL prompt tightened so Claude more reliably picks the component's
+  own holder-bearing LICENSE file.
+-->
+
 ## What it does
 
 For each input row (`component_name`, `purl`) the pipeline:
